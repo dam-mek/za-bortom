@@ -2,10 +2,19 @@
 
 import { describe, expect, it } from 'vitest'
 import type { CharacterId } from '@/game/constants'
-import { CHARACTERS } from '@/game/constants'
+import { CHARACTERS, NAVIGATION_DECK_SIZE, SUPPLY_DECK_SIZE } from '@/game/constants'
+import { assertInvariants } from '@/game/invariants'
 import { createRng } from '@/game/prng'
 import { reduce } from '@/game/reducer'
-import type { GameState, Player, PlayerId, Seat, SeatIndex, SupplyCard } from '@/game/types'
+import type {
+  GameState,
+  NavigationCard,
+  Player,
+  PlayerId,
+  Seat,
+  SeatIndex,
+  SupplyCard,
+} from '@/game/types'
 
 // ---------- Builder ----------
 
@@ -20,6 +29,10 @@ interface PlayerSetup {
 /** Построить state в фазе day.waitingForAction с явным составом 4 игроков (по 1 на seat 0..3). */
 function buildDay(playersSetup: PlayerSetup[]): GameState {
   if (playersSetup.length !== 4) throw new Error('test fixture supports 4 players')
+  const chars = playersSetup.map((p) => p.character)
+  if (new Set(chars).size !== chars.length) {
+    throw new Error(`buildDay: duplicate characters in setup: ${chars.join(',')}`)
+  }
 
   let supplyCounter = 1
   const supplyById: Record<string, SupplyCard> = {}
@@ -82,6 +95,38 @@ function buildDay(playersSetup: PlayerSetup[]): GameState {
     (id) => !playersSetup.some((p) => p.character === id),
   )
 
+  // Набить колоду припасов до 42 плейсхолдерами (вид water, чтобы не влияли на тесты).
+  const supplyDeck: string[] = []
+  const playerSupplyCount = Object.values(players).reduce(
+    (acc, p) => acc + p.openSupplies.length + p.closedSupplies.length,
+    0,
+  )
+  for (let i = playerSupplyCount; i < SUPPLY_DECK_SIZE; i++) {
+    const id = `s-${supplyCounter++}`
+    supplyById[id] = {
+      id,
+      kind: 'water',
+      singleUse: true,
+      isWeapon: false,
+      isValuable: false,
+    }
+    supplyDeck.push(id)
+  }
+
+  // Набить колоду навигации 24 плейсхолдерами (пустые: seagull='none', overboard=[], thirst=пусто).
+  const navById: Record<string, NavigationCard> = {}
+  const navDeck: string[] = []
+  for (let i = 0; i < NAVIGATION_DECK_SIZE; i++) {
+    const id = `n-${i + 1}`
+    navById[id] = {
+      id,
+      seagull: 'none',
+      overboard: [],
+      thirst: { rowers: false, fighters: false, named: [] },
+    }
+    navDeck.push(id)
+  }
+
   return {
     gameId: 'f',
     hostId: 'p-1',
@@ -91,13 +136,13 @@ function buildDay(playersSetup: PlayerSetup[]): GameState {
     players,
     seats,
     removedCharacters,
-    supplyDeck: [],
+    supplyDeck,
     supplyDiscard: [],
-    navDeck: [],
+    navDeck,
     navDiscard: [],
     navPool: [],
     supplyById,
-    navById: {},
+    navById,
     seagullTokens: 0,
     phase: { kind: 'day', subPhase: { kind: 'waitingForAction', currentSeat: 0 } },
     turnOrder,
@@ -138,6 +183,7 @@ describe('SWAP', () => {
     expect(r2.state.seats[1]!.occupantId).toBe('p-1')
     // Ход атакующего использован
     expect(r2.state.dayActionsTaken['p-1']).toBe(true)
+    assertInvariants(r2.state)
   })
 
   it('Жертва без сознания → авто-своп без согласия', () => {
@@ -348,37 +394,36 @@ describe('FIGHT', () => {
     expect(r.state.players['p-2']!.wounds).toBe(1)
     // Победитель не получает ран
     expect(r.state.players['p-1']!.wounds).toBe(0)
+    assertInvariants(r.state)
   })
 
-  it('Равенство сил: 3 vs 3 → побеждает жертва (rob)', () => {
+  it('Равенство сил: 6 vs 6 → побеждает жертва (rob)', () => {
+    // shket(3) + knife(weaponStrength=3) = 6 vs cherpak(6) → tie → defender побеждает.
     let state = buildDay([
-      { character: 'shket' }, // atk 3
       {
-        character: 'shket', // совпадение характера — не страшно для теста (мы не вызываем scoring)
-        closed: [{ kind: 'water', singleUse: true }],
+        character: 'shket',
+        open: [{ kind: 'knife', weaponStrength: 3, isWeapon: true }],
       },
+      { character: 'cherpak', closed: [{ kind: 'water', singleUse: true }] },
       { character: 'snob' },
       { character: 'kapitan' },
     ])
-    // Чтобы не было дубликата характера, переименуем
-    state = {
-      ...state,
-      players: {
-        ...state.players,
-        'p-2': { ...state.players['p-2']!, character: 'cherpak' as CharacterId },
-      },
-    }
-    // shket=3 vs cherpak=6 → defender побеждает.
+    const knifeId = state.players['p-1']!.openSupplies[0]!
     state = offerAndReject(state, 'rob')
-    const r = reduce(state, { kind: 'FIGHT_CLOSE_RECRUITMENT', playerId: 'p-1' })
+    const r1 = reduce(state, {
+      kind: 'FIGHT_ADD_WEAPON',
+      playerId: 'p-1',
+      weaponSupplyId: knifeId,
+    })
+    expectOk(r1)
+    const r = reduce(r1.state, { kind: 'FIGHT_CLOSE_RECRUITMENT', playerId: 'p-1' })
     expectOk(r)
     // Жертва побеждает → атакующий получил рану, ничего не забрал.
     expect(r.state.players['p-1']!.wounds).toBe(1)
     expect(r.state.players['p-2']!.wounds).toBe(0)
-    // Ничего не украдено: у жертвы closed по-прежнему 1
     expect(r.state.players['p-2']!.closedSupplies.length).toBe(1)
-    // Ход атакующего использован
     expect(r.state.dayActionsTaken['p-1']).toBe(true)
+    assertInvariants(r.state)
   })
 
   it('Союзник: 3 (атакующий shket) + 5 (snob союзник) = 8 vs 8 (bocman) → tie → жертва побеждает', () => {
@@ -647,59 +692,30 @@ describe('FIGHT', () => {
   })
 
   it('Атакующий с равным числом в rob → жертва побеждает и сохраняет припасы', () => {
-    // shket(3) vs shket(3) — оба силы 3. Защитник побеждает.
+    // shket(3) + oar(1) = 4 vs miledi(4) → tie → defender wins, припасы остаются.
     let state = buildDay([
-      { character: 'shket' },
       {
-        character: 'shket', // дубликат character — fix ниже
-        closed: [{ kind: 'water', singleUse: true }],
+        character: 'shket',
+        open: [{ kind: 'oar', weaponStrength: 1, isWeapon: true }],
       },
+      { character: 'miledi', closed: [{ kind: 'water', singleUse: true }] },
       { character: 'snob' },
       { character: 'kapitan' },
     ])
-    // Переопределим character p-2 на «третий уникальный». Используем cherpak(6)? Нет, нам нужны равные.
-    // Возьмём другого 3-сила: нет такого. Сделаем shket с wounds, чтобы не дублировать character —
-    // shket(3) vs cherpak(6) — но нам нужно равенство.
-    // Используем bocman vs bocman (тоже дубликат). Тогда просто меняем character p-2:
-    state = {
-      ...state,
-      players: {
-        ...state.players,
-        'p-2': { ...state.players['p-2']!, character: 'miledi' as CharacterId },
-      },
-    }
-    // shket(3) vs miledi(4): defender побеждает уже без равенства.
-    // Применим: дать shket'у hook(+1) — итог 3+1=4 vs 4 → равно → defender wins.
-    state = {
-      ...state,
-      supplyById: {
-        ...state.supplyById,
-        'hk-1': {
-          id: 'hk-1',
-          kind: 'oar', // oar weaponStrength=1
-          singleUse: false,
-          isWeapon: true,
-          isValuable: false,
-          weaponStrength: 1,
-        },
-      },
-      players: {
-        ...state.players,
-        'p-1': { ...state.players['p-1']!, openSupplies: ['hk-1'] },
-      },
-    }
+    const oarId = state.players['p-1']!.openSupplies[0]!
     state = offerAndReject(state, 'rob')
     const r1 = reduce(state, {
       kind: 'FIGHT_ADD_WEAPON',
       playerId: 'p-1',
-      weaponSupplyId: 'hk-1',
+      weaponSupplyId: oarId,
     })
     expectOk(r1)
     const r2 = reduce(r1.state, { kind: 'FIGHT_CLOSE_RECRUITMENT', playerId: 'p-1' })
     expectOk(r2)
-    // 4 vs 4 → defender. Жертва сохранила closed.
+    // 4 vs 4 → defender. Жертва сохранила closed, атакующий ранен.
     expect(r2.state.players['p-2']!.closedSupplies.length).toBe(1)
     expect(r2.state.players['p-1']!.wounds).toBe(1)
+    assertInvariants(r2.state)
   })
 })
 

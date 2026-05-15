@@ -2,10 +2,20 @@
 
 import type { Action } from './actions'
 import { advanceTurn, err, isGameError, requireMyDayTurn } from './rules/_helpers'
+import {
+  acceptProposal,
+  fightAddWeapon,
+  fightAllyResponse,
+  fightCloseRecruitment,
+  fightRecruitAlly,
+  rejectProposal,
+} from './rules/fight'
 import { chooseSupply, enterMorning } from './rules/morning'
+import { offerRob, robPick } from './rules/rob'
 import { row, rowKeepCards } from './rules/row'
 import { determineWinners, scoreGame } from './rules/scoring'
 import { shketSteal } from './rules/shket-steal'
+import { offerSwap } from './rules/swap'
 import { discardSupply, giveSupply, revealSupply } from './rules/trade'
 import { useFirstAid, useFlare, useUmbrella } from './rules/use-supply'
 import type { GameState, ReducerResult } from './types'
@@ -34,7 +44,7 @@ export function reduce(state: GameState, action: Action): ReducerResult {
     case 'CHOOSE_SUPPLY':
       return chooseSupply(state, action.playerId, action.supplyId)
 
-    // ---------- Day actions (Фаза 3) ----------
+    // ---------- Day actions ----------
     case 'ROW':
       return row(state, action)
     case 'ROW_KEEP_CARDS':
@@ -47,13 +57,38 @@ export function reduce(state: GameState, action: Action): ReducerResult {
       return useUmbrella(state, action)
     case 'USE_FLARE':
       return useFlare(state, action)
+    case 'OFFER_SWAP':
+      return offerSwap(state, action)
+    case 'OFFER_ROB':
+      return offerRob(state, action)
     case 'SKIP_TURN': {
       const guard = requireMyDayTurn(state, action.playerId)
       if (isGameError(guard)) return { ok: false, error: guard }
       return { ok: true, state: advanceTurn(state, action.playerId), events: [] }
     }
 
-    // ---------- Reactive (Фаза 3) ----------
+    // ---------- Swap/Rob response ----------
+    case 'PROPOSAL_ACCEPT':
+      return acceptProposal(state, action)
+    case 'PROPOSAL_REJECT':
+      return rejectProposal(state, action)
+    case 'ROB_PICK':
+      return robPick(state, action)
+
+    // ---------- Fight ----------
+    case 'FIGHT_RECRUIT_ALLY':
+      return fightRecruitAlly(state, action)
+    case 'FIGHT_ALLY_RESPONSE':
+      return fightAllyResponse(state, action)
+    case 'FIGHT_ADD_WEAPON':
+      return fightAddWeapon(state, action)
+    case 'FIGHT_CLOSE_RECRUITMENT':
+      return fightCloseRecruitment(state, action)
+    case 'DECLARE_FIGHT':
+      // Драка автотриггерится при PROPOSAL_REJECT, явное объявление не используется.
+      return err('UNKNOWN_ACTION', `DECLARE_FIGHT is auto-triggered via PROPOSAL_REJECT`)
+
+    // ---------- Reactive ----------
     case 'REVEAL_SUPPLY':
       return revealSupply(state, action)
     case 'DISCARD_SUPPLY':
@@ -65,17 +100,7 @@ export function reduce(state: GameState, action: Action): ReducerResult {
     case 'PHASE_ADVANCE':
       return handlePhaseAdvance(state)
 
-    // ---------- Не реализовано в Фазе 3 ----------
-    case 'OFFER_SWAP':
-    case 'OFFER_ROB':
-    case 'PROPOSAL_ACCEPT':
-    case 'PROPOSAL_REJECT':
-    case 'ROB_PICK':
-    case 'DECLARE_FIGHT':
-    case 'FIGHT_RECRUIT_ALLY':
-    case 'FIGHT_ALLY_RESPONSE':
-    case 'FIGHT_ADD_WEAPON':
-    case 'FIGHT_CLOSE_RECRUITMENT':
+    // ---------- Не реализовано в Фазе 4 ----------
     case 'USE_LIFE_RING':
     case 'EVENING_USE_COMPASS':
     case 'EVENING_SELECT_NAV_CARD':
@@ -96,7 +121,8 @@ function handlePhaseAdvance(state: GameState): ReducerResult {
   if (state.phase.kind === 'scoring') {
     const scores = scoreGame(state)
     const winners = determineWinners(state, scores)
-    const winner = winners.length === 0 ? 'sea' : winners.length === 1 ? (winners[0] as string) : 'tie'
+    const winner =
+      winners.length === 0 ? 'sea' : winners.length === 1 ? (winners[0] as string) : 'tie'
     return {
       ok: true,
       state: {

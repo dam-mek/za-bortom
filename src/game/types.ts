@@ -114,10 +114,14 @@ export interface FightState {
   readonly reason: 'swap' | 'rob'
   readonly attackerId: PlayerId
   readonly defenderId: PlayerId
+  /** Банка, за которую сражение (место для свопа или место жертвы при ограблении). */
+  readonly targetSeat: SeatIndex
   readonly attackerAllies: PlayerId[]
   readonly defenderAllies: PlayerId[]
   readonly attackerWeapons: SupplyInstanceId[]
   readonly defenderWeapons: SupplyInstanceId[]
+  /** Активный приглашённый союзник, ждущий FIGHT_ALLY_RESPONSE. */
+  readonly pendingAlly: { invitedId: PlayerId; side: 'attacker' | 'defender' } | null
   readonly recruitmentClosed: boolean
 }
 

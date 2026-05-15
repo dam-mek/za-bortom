@@ -40,7 +40,10 @@ export default tseslint.config(
   {
     files: ['src/game/**/*.ts'],
     rules: {
-      // src/game/ должна быть pure: запрещаем импорт React/PeerJS/XState/Zustand/DOM
+      // src/game/ — pure TS. React-правила здесь не применимы: запрещаем сам импорт
+      // React и отключаем react-hooks/* (наши функции вроде useFirstAid — обычные хелперы).
+      'react-hooks/rules-of-hooks': 'off',
+      'react-hooks/exhaustive-deps': 'off',
       'no-restricted-imports': [
         'error',
         {

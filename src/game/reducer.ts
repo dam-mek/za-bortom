@@ -1,16 +1,16 @@
 // Главный диспатчер reducer'а. См. docs/game-spec.md §9.
-//
-// Сейчас (Фаза 2) реализованы: START_GAME, CHOOSE_SUPPLY, PHASE_ADVANCE, TALLY_SCORES
-// (через scoring.scoreGame). Остальные actions возвращают ok:false с UNKNOWN_ACTION,
-// будут добавляться в следующих фазах.
 
 import type { Action } from './actions'
-import { enterMorning, chooseSupply } from './rules/morning'
-import { scoreGame, determineWinners } from './rules/scoring'
-import type { GameError, GameState, ReducerResult } from './types'
+import { advanceTurn, err, isGameError, requireMyDayTurn } from './rules/_helpers'
+import { chooseSupply, enterMorning } from './rules/morning'
+import { row, rowKeepCards } from './rules/row'
+import { determineWinners, scoreGame } from './rules/scoring'
+import { shketSteal } from './rules/shket-steal'
+import { discardSupply, giveSupply, revealSupply } from './rules/trade'
+import { useFirstAid, useFlare, useUmbrella } from './rules/use-supply'
+import type { GameState, ReducerResult } from './types'
 
 export function reduce(state: GameState, action: Action): ReducerResult {
-  // Глобальные guard'ы.
   if (state.phase.kind === 'finished') {
     return err('GAME_FINISHED', `Game is finished; action ${action.kind} ignored`)
   }
@@ -26,31 +26,48 @@ export function reduce(state: GameState, action: Action): ReducerResult {
       }
       return { ok: true, state: enterMorning(state), events: [] }
     }
-
     case 'LOBBY_JOIN':
     case 'LOBBY_LEAVE':
-      // На MVP — lobby в основном живёт в net-слое; reducer ничего не делает.
       return err('UNKNOWN_ACTION', `Action ${action.kind} not handled by reducer in this phase`)
 
     // ---------- Morning ----------
     case 'CHOOSE_SUPPLY':
       return chooseSupply(state, action.playerId, action.supplyId)
 
+    // ---------- Day actions (Фаза 3) ----------
+    case 'ROW':
+      return row(state, action)
+    case 'ROW_KEEP_CARDS':
+      return rowKeepCards(state, action)
+    case 'SHKET_STEAL':
+      return shketSteal(state, action)
+    case 'USE_FIRST_AID':
+      return useFirstAid(state, action)
+    case 'USE_UMBRELLA':
+      return useUmbrella(state, action)
+    case 'USE_FLARE':
+      return useFlare(state, action)
+    case 'SKIP_TURN': {
+      const guard = requireMyDayTurn(state, action.playerId)
+      if (isGameError(guard)) return { ok: false, error: guard }
+      return { ok: true, state: advanceTurn(state, action.playerId), events: [] }
+    }
+
+    // ---------- Reactive (Фаза 3) ----------
+    case 'REVEAL_SUPPLY':
+      return revealSupply(state, action)
+    case 'DISCARD_SUPPLY':
+      return discardSupply(state, action)
+    case 'GIVE_SUPPLY':
+      return giveSupply(state, action)
+
     // ---------- Системные ----------
     case 'PHASE_ADVANCE':
       return handlePhaseAdvance(state)
 
-    // ---------- Не реализовано в Фазе 2 ----------
-    case 'ROW':
+    // ---------- Не реализовано в Фазе 3 ----------
     case 'OFFER_SWAP':
     case 'OFFER_ROB':
-    case 'SHKET_STEAL':
-    case 'USE_FIRST_AID':
-    case 'USE_UMBRELLA':
-    case 'USE_FLARE':
-    case 'SKIP_TURN':
-    case 'ROW_KEEP_CARDS':
-    case 'ROW_DECLARE_OAR':
     case 'PROPOSAL_ACCEPT':
     case 'PROPOSAL_REJECT':
     case 'ROB_PICK':
@@ -59,9 +76,6 @@ export function reduce(state: GameState, action: Action): ReducerResult {
     case 'FIGHT_ALLY_RESPONSE':
     case 'FIGHT_ADD_WEAPON':
     case 'FIGHT_CLOSE_RECRUITMENT':
-    case 'REVEAL_SUPPLY':
-    case 'DISCARD_SUPPLY':
-    case 'GIVE_SUPPLY':
     case 'USE_LIFE_RING':
     case 'EVENING_USE_COMPASS':
     case 'EVENING_SELECT_NAV_CARD':
@@ -71,7 +85,6 @@ export function reduce(state: GameState, action: Action): ReducerResult {
       return err('UNKNOWN_ACTION', `Action ${action.kind} not implemented yet`)
 
     default: {
-      // Exhaustiveness check.
       const _exhaustive: never = action
       void _exhaustive
       return err('INVALID_ACTION_SHAPE', `Unknown action`)
@@ -80,7 +93,6 @@ export function reduce(state: GameState, action: Action): ReducerResult {
 }
 
 function handlePhaseAdvance(state: GameState): ReducerResult {
-  // При phase=scoring → проставляем финальные очки + winner и переходим в finished.
   if (state.phase.kind === 'scoring') {
     const scores = scoreGame(state)
     const winners = determineWinners(state, scores)
@@ -97,8 +109,4 @@ function handlePhaseAdvance(state: GameState): ReducerResult {
     }
   }
   return err('WRONG_PHASE', `PHASE_ADVANCE not handled in phase ${state.phase.kind}`)
-}
-
-function err(code: GameError['code'], message: string): { ok: false; error: GameError } {
-  return { ok: false, error: { kind: 'GameError', code, message } }
 }

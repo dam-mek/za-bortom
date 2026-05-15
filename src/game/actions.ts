@@ -83,11 +83,6 @@ export interface ARowKeepCards {
   readonly playerId: PlayerId
   readonly cardIds: NavCardInstanceId[]
 }
-export interface ARowDeclareOar {
-  readonly kind: 'ROW_DECLARE_OAR'
-  readonly playerId: PlayerId
-  readonly oarSupplyId: SupplyInstanceId
-}
 
 // ---------- Реакция на swap/rob ----------
 
@@ -215,7 +210,6 @@ export type Action =
   | AUseFlare
   | ASkipTurn
   | ARowKeepCards
-  | ARowDeclareOar
   | AProposalAccept
   | AProposalReject
   | ARobPick

@@ -38,5 +38,6 @@ coverage/
 # Vite
 .vite/
 
-# Claude Code local user settings
+# Claude Code local user settings + worktrees
 .claude/settings.local.json
+.claude/worktrees/

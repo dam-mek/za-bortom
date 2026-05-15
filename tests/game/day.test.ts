@@ -572,7 +572,11 @@ describe('full-day integration', () => {
       state = r2.state
     }
     expect(state.phase.kind).toBe('evening')
-    expect(state.navPool.length).toBe(4)
+    if (state.phase.kind === 'evening' && state.phase.subPhase.kind === 'sternPicking') {
+      // navPool теперь перенесён в subPhase.pool при transitionToEvening.
+      expect(state.phase.subPhase.pool.length).toBe(4)
+    }
+    expect(state.navPool.length).toBe(0)
     assertInvariants(state)
   })
 })

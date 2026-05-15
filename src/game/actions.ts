@@ -187,6 +187,14 @@ export interface AEveningDeclineWater {
   readonly playerId: PlayerId
   readonly targetCharacter: CharacterId
 }
+export interface AEveningSkipLifeRing {
+  readonly kind: 'EVENING_SKIP_LIFE_RING'
+  readonly playerId: PlayerId
+}
+export interface AEveningSkipSharkBait {
+  readonly kind: 'EVENING_SKIP_SHARK_BAIT'
+  readonly playerId: PlayerId
+}
 
 // ---------- Системные ----------
 
@@ -227,6 +235,8 @@ export type Action =
   | AEveningUseSharkBait
   | AEveningUseWater
   | AEveningDeclineWater
+  | AEveningSkipLifeRing
+  | AEveningSkipSharkBait
   | APhaseAdvance
 
 export type ActionKind = Action['kind']

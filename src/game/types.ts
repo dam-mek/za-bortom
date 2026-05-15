@@ -126,10 +126,43 @@ export interface FightState {
 }
 
 export type EveningSubPhase =
-  | { readonly kind: 'sternPicking'; readonly pickerId: PlayerId; readonly pool: NavCardInstanceId[] }
-  | { readonly kind: 'resolving'; readonly cardId: NavCardInstanceId; readonly step: NavResolveStep }
+  | {
+      readonly kind: 'sternPicking'
+      readonly pickerId: PlayerId
+      readonly pool: NavCardInstanceId[]
+      readonly compassUsed: boolean
+    }
+  | {
+      readonly kind: 'resolving'
+      readonly cardId: NavCardInstanceId
+      readonly step: ResolveStep
+    }
 
-export type NavResolveStep = 'seagulls' | 'overboard' | 'sharkBait' | 'thirst' | 'cleanup'
+/** Шаг разрешения карты навигации. См. rules/evening.ts. */
+export type ResolveStep =
+  | {
+      readonly kind: 'overboardLifeRing'
+      /** Очередь решений для падающих с закрытым кругом (head = текущий). */
+      readonly pendingChars: CharacterId[]
+      /** Те, кто гарантированно упадёт (нет круга или отказались). */
+      readonly confirmedOverboard: CharacterId[]
+    }
+  | {
+      readonly kind: 'sharkBait'
+      readonly overboardChars: CharacterId[]
+      /** Очередь conscious-владельцев открытой приманки (head = текущий). */
+      readonly ownerQueue: PlayerId[]
+    }
+  | {
+      readonly kind: 'thirst'
+      /** Очередь персонажей с оставшимися ранениями от жажды. */
+      readonly queue: ReadonlyArray<{ readonly char: CharacterId; readonly remainingWounds: number }>
+      /** Кто уже применил защиту зонтика этим вечером (1 за вечер на персонажа). */
+      readonly umbrellaUsedBy: readonly CharacterId[]
+    }
+
+// Старый алиас сохраняем для совместимости — теперь не используется.
+export type NavResolveStep = ResolveStep
 
 // ---------- События / ошибки ----------
 

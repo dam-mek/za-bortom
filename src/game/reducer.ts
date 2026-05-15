@@ -10,6 +10,16 @@ import {
   fightRecruitAlly,
   rejectProposal,
 } from './rules/fight'
+import {
+  declineWater,
+  eveningSelectNavCard,
+  eveningUseCompass,
+  skipLifeRing,
+  skipSharkBait,
+  useLifeRing,
+  useSharkBait,
+  useWater,
+} from './rules/evening'
 import { chooseSupply, enterMorning } from './rules/morning'
 import { offerRob, robPick } from './rules/rob'
 import { row, rowKeepCards } from './rules/row'
@@ -100,14 +110,23 @@ export function reduce(state: GameState, action: Action): ReducerResult {
     case 'PHASE_ADVANCE':
       return handlePhaseAdvance(state)
 
-    // ---------- Не реализовано в Фазе 4 ----------
-    case 'USE_LIFE_RING':
+    // ---------- Evening (Фаза 5) ----------
     case 'EVENING_USE_COMPASS':
+      return eveningUseCompass(state, action)
     case 'EVENING_SELECT_NAV_CARD':
+      return eveningSelectNavCard(state, action)
+    case 'USE_LIFE_RING':
+      return useLifeRing(state, action)
+    case 'EVENING_SKIP_LIFE_RING':
+      return skipLifeRing(state, action)
     case 'EVENING_USE_SHARK_BAIT':
+      return useSharkBait(state, action)
+    case 'EVENING_SKIP_SHARK_BAIT':
+      return skipSharkBait(state, action)
     case 'EVENING_USE_WATER':
+      return useWater(state, action)
     case 'EVENING_DECLINE_WATER':
-      return err('UNKNOWN_ACTION', `Action ${action.kind} not implemented yet`)
+      return declineWater(state, action)
 
     default: {
       const _exhaustive: never = action

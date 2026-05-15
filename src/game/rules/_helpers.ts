@@ -144,8 +144,9 @@ export function transitionToEvening(state: GameState): GameState {
     kind: 'sternPicking',
     pickerId: pickerSeat.occupantId,
     pool: [...state.navPool],
+    compassUsed: false,
   }
-  return { ...state, phase: { kind: 'evening', subPhase: sub } }
+  return { ...state, phase: { kind: 'evening', subPhase: sub }, navPool: [] }
 }
 
 // ---------- Колода навигации с рециклингом ----------

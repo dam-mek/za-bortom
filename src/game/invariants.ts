@@ -14,26 +14,40 @@ export function checkInvariants(state: GameState): InvariantError[] {
   const add = (code: string, message: string) => errors.push({ code, message })
 
   // 1. Сохранение карт припасов = 42
+  // Карты в morning.subPhase.pile тоже считаются.
   const supplyByPlayers = Object.values(state.players).reduce(
     (acc, p) => acc + p.openSupplies.length + p.closedSupplies.length,
     0,
   )
+  let supplyInPhase = 0
+  if (state.phase.kind === 'morning' && state.phase.subPhase.kind === 'distributing') {
+    supplyInPhase += state.phase.subPhase.pile.length
+  }
   const supplyTotal =
-    state.supplyDeck.length + state.supplyDiscard.length + supplyByPlayers
+    state.supplyDeck.length + state.supplyDiscard.length + supplyByPlayers + supplyInPhase
   if (supplyTotal !== SUPPLY_DECK_SIZE) {
     add(
       'SUPPLY_COUNT',
-      `Supply cards total ${supplyTotal} ≠ ${SUPPLY_DECK_SIZE} (deck=${state.supplyDeck.length}, discard=${state.supplyDiscard.length}, players=${supplyByPlayers})`,
+      `Supply cards total ${supplyTotal} ≠ ${SUPPLY_DECK_SIZE} (deck=${state.supplyDeck.length}, discard=${state.supplyDiscard.length}, players=${supplyByPlayers}, inPhase=${supplyInPhase})`,
     )
   }
 
   // 2. Сохранение карт навигации = 24
+  // Карты могут быть также внутри evening.sternPicking.pool или resolving.cardId.
+  let navInPhase = 0
+  if (state.phase.kind === 'evening') {
+    if (state.phase.subPhase.kind === 'sternPicking') {
+      navInPhase += state.phase.subPhase.pool.length
+    } else if (state.phase.subPhase.kind === 'resolving') {
+      navInPhase += 1 // resolving.cardId — карта «в процессе»
+    }
+  }
   const navTotal =
-    state.navDeck.length + state.navDiscard.length + state.navPool.length
+    state.navDeck.length + state.navDiscard.length + state.navPool.length + navInPhase
   if (navTotal !== NAVIGATION_DECK_SIZE) {
     add(
       'NAV_COUNT',
-      `Nav cards total ${navTotal} ≠ ${NAVIGATION_DECK_SIZE} (deck=${state.navDeck.length}, discard=${state.navDiscard.length}, pool=${state.navPool.length})`,
+      `Nav cards total ${navTotal} ≠ ${NAVIGATION_DECK_SIZE} (deck=${state.navDeck.length}, discard=${state.navDiscard.length}, pool=${state.navPool.length}, inPhase=${navInPhase})`,
     )
   }
 
@@ -120,11 +134,14 @@ export function checkInvariants(state: GameState): InvariantError[] {
     )
   }
 
-  // 8. turnOrder ⊆ занятые банки
-  for (const seatIdx of state.turnOrder) {
-    const seat = state.seats[seatIdx]
-    if (!seat || seat.removed || seat.occupantId === null) {
-      add('TURN_ORDER_INVALID_SEAT', `turnOrder contains seat ${seatIdx} which is not playable`)
+  // 8. turnOrder ⊆ занятые банки. Проверяется только в day-фазе — между днями
+  // turnOrder может содержать stale-индексы (сбрасывается при transitionToDay).
+  if (state.phase.kind === 'day') {
+    for (const seatIdx of state.turnOrder) {
+      const seat = state.seats[seatIdx]
+      if (!seat || seat.removed || seat.occupantId === null) {
+        add('TURN_ORDER_INVALID_SEAT', `turnOrder contains seat ${seatIdx} which is not playable`)
+      }
     }
   }
 

@@ -19,7 +19,7 @@ P2P веб-версия настольной игры «За бортом» (Lif
 - **PeerJS** — WebRTC P2P, бесплатный публичный signaling broker `peerjs.com` (см. [`docs/network-protocol.md`](./docs/network-protocol.md))
 - **Tailwind CSS** — минималистичный визуал на MVP
 - **Immer** — иммутабельность в reducer
-- **seedrandom** — детерминированный PRNG
+- **mulberry32** — детерминированный PRNG (короткая реализация в `src/game/prng.ts`, без внешней dep)
 - **Vitest** (+ `@vitest/ui`) — unit/integration; Playwright — позже для E2E
 - **ESLint + Prettier** — single quotes, no semicolons
 - **Node >= 20**
@@ -173,11 +173,12 @@ public/
 - **Типы/enums**: PascalCase (`PlayerState`).
 - **Функции/переменные**: camelCase.
 - **Константы игры**: SCREAMING_SNAKE_CASE в `constants.ts` (`SUPPLY_DECK_SIZE = 42`).
-- **Action types**: discriminated union, поле `type: 'SCREAMING_SNAKE'` (`ROW`, `OFFER_SWAP`, `ACCEPT_SWAP`, `DECLARE_FIGHT`, ...).
-- **Reducer**: чистая функция, без побочных эффектов, без рандома (рандом — отдельная зависимость, инжектится через `state.rng`).
-- **Рандом**: `seedrandom` (или передаваемый PRNG) для воспроизводимости тестов. В тестах — детерминированный seed; в проде — случайный.
+- **Action types / Discriminated unions**: поле `kind: 'SCREAMING_SNAKE'` (`ROW`, `OFFER_SWAP`, `ACCEPT_SWAP`, `DECLARE_FIGHT`, ...). Без префикса фазы — фазу валидирует FSM. Внутри game-логики и сетевого протокола дискриминатор — **всегда `kind`**, не `type`.
+- **Сетевой протокол (wire)**: сообщения kebab-case через `kind` — `{ kind: 'state-update', ... }`, `{ kind: 'action', payload: { kind: 'ROW' } }`.
+- **Reducer**: чистая функция `(state, action) => { ok: true; state; events } | { ok: false; error }`. Без побочных эффектов, без рандома (rng — поле в `state.rng`, обновляется иммутабельно).
+- **Рандом**: mulberry32, seed — `number`. В тестах — детерминированный seed; в проде — случайный.
 - **Идентификаторы**: всегда английский/Latin. Комментарии в коде — допустимо по-русски (особенно для разъяснения правил).
-- **Игровые термины в коде**: транслит русских имён (`Bocman`, `Shket`, `Snob`, `Kapitan`, `Miledi`, `Cherpak`). Типы карт — английский (`water`, `firstAid`, `umbrella`, `flare`, `compass`, `lifeRing`, `oar`, `sharkBait`, `club`, `hook`, `knife`, `money`, `jewelry`, `painting`). **Если в `docs/game-rules.md` остался open-question по casing — синхронизировать после решения.**
+- **Игровые термины в коде**: персонажи — camelCase транслит (`bocman`, `shket`, `snob`, `kapitan`, `miledi`, `cherpak`); типы карт — snake_case (`water`, `first_aid`, `umbrella`, `flare`, `compass`, `life_ring`, `oar`, `shark_bait`, `club`, `hook`, `knife`, `money`, `jewelry`, `painting`). См. [`docs/decisions.md`](./docs/decisions.md).
 - **GameError**: класс/тип с `code: ErrorCode` (enum) и `message`.
 - **Commits**: imperative, с префиксом подсистемы — `game: implement fight resolution`, `fsm: add evening sub-states`, `net: handle peer disconnect`.
 
@@ -217,6 +218,7 @@ public/
 - **Sync / multiplayer issue?** → [`docs/network-protocol.md`](./docs/network-protocol.md).
 - **Что видит игрок?** → [`docs/visibility-model.md`](./docs/visibility-model.md).
 - **Где сейчас находимся в проекте?** → [`docs/roadmap.md`](./docs/roadmap.md).
+- **Принятые решения (резолюции open questions)?** → [`docs/decisions.md`](./docs/decisions.md) — этот файл перевешивает остальные доки при расхождении.
 
 ## Чего НЕ делать
 

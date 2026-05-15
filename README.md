@@ -26,6 +26,7 @@ npm run dev
 | [`docs/state-machine.md`](./docs/state-machine.md) | Карта фаз и подфаз игры (XState) |
 | [`docs/visibility-model.md`](./docs/visibility-model.md) | Что видит каждый игрок (visibility-фильтр) |
 | [`docs/bots.md`](./docs/bots.md) | Спецификация эвристических ботов |
+| [`docs/decisions.md`](./docs/decisions.md) | Резолюции open questions — авторитетный документ |
 | [`docs/roadmap.md`](./docs/roadmap.md) | Фазы разработки с acceptance-критериями |
 
 ## Юридический статус

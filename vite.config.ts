@@ -12,5 +12,13 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: false,
+    host: true, // 0.0.0.0 чтобы был доступен из туннеля
+    // Разрешаем любые хосты (для ngrok/cloudflared). На проде/в Vercel это не нужно.
+    allowedHosts: true,
+  },
+  preview: {
+    port: 4173,
+    host: true,
+    allowedHosts: true,
   },
 })

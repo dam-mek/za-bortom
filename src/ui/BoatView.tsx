@@ -3,6 +3,11 @@ import { CHARACTERS } from '@/game/constants'
 import type { CharacterId } from '@/game/constants'
 import type { GameState, Player, SupplyCard } from '@/game/types'
 
+// State может быть полным (host/local) или отфильтрованным (client) — каст в Game.tsx.
+// В рантайме bestFriend/worstEnemy могут быть null (UI рендерит "— скрыто —").
+type AnyState = GameState
+type AnyPlayer = Player
+
 function characterMeta(id: CharacterId): { name: string; strength: number; bonus: number } {
   const c = CHARACTERS.find((x) => x.id === id)
   if (!c) return { name: id, strength: 0, bonus: 0 }
@@ -17,7 +22,10 @@ function characterMeta(id: CharacterId): { name: string; strength: number; bonus
   return { name: names[id], strength: c.strength, bonus: c.survivalBonus }
 }
 
-function CardChip({ card }: { card: SupplyCard | undefined }) {
+function CardChip({ card, hidden }: { card: SupplyCard | undefined; hidden?: boolean }) {
+  if (hidden && !card) {
+    return <span className="inline-block bg-sea-700/50 px-2 py-0.5 rounded text-xs">🂠 закрыто</span>
+  }
   if (!card) return <span className="text-red-400">?</span>
   const labels: Record<string, string> = {
     water: '💧 вода',
@@ -50,14 +58,14 @@ function PlayerCard({
   isCurrent,
   seatIndex,
 }: {
-  state: GameState
-  player: Player
+  state: AnyState
+  player: AnyPlayer
   isCurrent: boolean
   seatIndex: number
 }) {
   const meta = characterMeta(player.character)
-  const friend = characterMeta(player.bestFriend)
-  const enemy = characterMeta(player.worstEnemy)
+  const friendName = player.bestFriend ? characterMeta(player.bestFriend).name : '— скрыто —'
+  const enemyName = player.worstEnemy ? characterMeta(player.worstEnemy).name : '— скрыто —'
   return (
     <div
       className={clsx(
@@ -76,7 +84,7 @@ function PlayerCard({
         </span>
       </div>
       <div className="text-xs text-sea-300 mb-2">
-        🤝 друг: {friend.name} · 💀 враг: {enemy.name}
+        🤝 друг: {friendName} · 💀 враг: {enemyName}
       </div>
       <div className="text-xs mb-2">
         ❤️ ран: {player.wounds}/{meta.strength}
@@ -100,7 +108,7 @@ function PlayerCard({
           <div className="flex flex-wrap gap-1">
             <span className="text-xs text-sea-300">Закрыто ({player.closedSupplies.length}):</span>
             {player.closedSupplies.map((id) => (
-              <CardChip key={id} card={state.supplyById[id]} />
+              <CardChip key={id} card={state.supplyById[id]} hidden />
             ))}
           </div>
         )}
@@ -109,7 +117,7 @@ function PlayerCard({
   )
 }
 
-export function BoatView({ state }: { state: GameState }) {
+export function BoatView({ state }: { state: AnyState }) {
   // Найти текущего «активного» — по фазе.
   const currentPlayerId = findCurrentPlayer(state)
 
@@ -165,7 +173,7 @@ export function BoatView({ state }: { state: GameState }) {
   )
 }
 
-function findCurrentPlayer(state: GameState): string | null {
+function findCurrentPlayer(state: AnyState): string | null {
   if (state.phase.kind === 'morning' && state.phase.subPhase.kind === 'distributing') {
     return state.seats[state.phase.subPhase.currentSeat]?.occupantId ?? null
   }

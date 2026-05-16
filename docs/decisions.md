@@ -51,6 +51,21 @@
 | 21 | weaponStrength оружия | **Плейсхолдеры с TODO**, исправить при сверке физической колоды: `club: 2`, `knife: 3`, `hook: 4`, `oar: 1`, `flare: 10` (одноразовое). |
 | 22 | Tiebreaker при равенстве очков | **Жив > мёртв.** При равенстве в этой подкатегории — совместная победа. |
 
+## 23. Фаза 6 (XState) — пропущена
+
+**Решение от 2026-05-15:** Фаза 6 roadmap'а (формальная XState-машина) пропущена. Phase живёт внутри `GameState` как discriminated union, переходы делает reducer. Эта архитектура работает, покрыта 142 тестами, и архитектурно эквивалентна XState без runtime-зависимости.
+
+Что потеряли:
+- Визуализатор Stately (могли бы смотреть граф фаз в браузере)
+- Catch unreachable states на статике
+
+Что сохранили:
+- Type-safe events через discriminated unions
+- Predictable state через pure reducer
+- Меньше кода и зависимостей
+
+Это перевешивает рекомендацию CLAUDE.md §«XState владеет phase» — обновить CLAUDE.md, чтобы убрать XState из стека и заменить «Одна машина фаз» на «Фаза — поле `GameState.phase`, переходы в reducer'е».
+
 ## Что обновить дальше
 
 - [ ] `src/game/constants.ts` — привести `CharacterId` к camelCase, `SupplyType` к snake_case, заполнить weaponStrength плейсхолдерами.

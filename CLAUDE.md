@@ -15,7 +15,7 @@ P2P веб-версия настольной игры «За бортом» (Lif
 - **React 18 + TypeScript** (`strict: true`, `noUncheckedIndexedAccess: true`, никаких `any` без комментария)
 - **Vite** — dev/build
 - **Zustand** — UI store
-- **XState** — машина фаз (см. [`docs/state-machine.md`](./docs/state-machine.md))
+- ~~XState~~ — **не используется** (decision #23). Фаза = поле `GameState.phase`, переходы — в reducer'е. См. [`docs/state-machine.md`](./docs/state-machine.md) для логической карты подфаз.
 - **PeerJS** — WebRTC P2P, бесплатный публичный signaling broker `peerjs.com` (см. [`docs/network-protocol.md`](./docs/network-protocol.md))
 - **Tailwind CSS** — минималистичный визуал на MVP
 - **Immer** — иммутабельность в reducer

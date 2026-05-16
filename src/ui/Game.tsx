@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store/game-store'
+import type { GameState } from '@/game/types'
 import { ActionPanel } from './ActionPanel'
 import { BoatView } from './BoatView'
 import { LogPane } from './LogPane'
@@ -27,10 +28,15 @@ function describePhase(state: ReturnType<typeof useGameStore.getState>['state'])
 }
 
 export function Game() {
-  const state = useGameStore((s) => s.state)
+  const rawState = useGameStore((s) => s.state)
   const lastError = useGameStore((s) => s.lastError)
   const reset = useGameStore((s) => s.reset)
-  if (!state) return null
+  const mode = useGameStore((s) => s.mode)
+  const myPlayerId = useGameStore((s) => s.myPlayerId)
+  if (!rawState) return null
+  // В client-режиме state — FilteredGameState; в нём players[id].bestFriend может быть null,
+  // некоторые supplyById/navById отсутствуют. UI рендерит "?" / "— скрыто —".
+  const state = rawState as GameState
 
   return (
     <main className="min-h-screen p-4 font-mono text-white grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
@@ -39,6 +45,11 @@ export function Game() {
           <h1 className="text-2xl">
             <span className="text-sea-300">День {state.day} · </span>
             <span>{describePhase(state)}</span>
+            {mode !== 'local' && myPlayerId && (
+              <span className="ml-3 text-sm text-yellow-300">
+                · вы: {state.players[myPlayerId]?.displayName ?? myPlayerId} ({mode})
+              </span>
+            )}
           </h1>
           <button onClick={reset} className="text-sea-300 hover:underline text-sm">
             ← к началу

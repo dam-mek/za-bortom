@@ -265,5 +265,27 @@ export type ReducerResult =
   | { readonly ok: true; readonly state: GameState; readonly events: GameEvent[] }
   | { readonly ok: false; readonly error: GameError }
 
+// ---------- Filtered view (для сети) ----------
+
+/** Игрок с точки зрения зрителя. Для других игроков friend/enemy скрыты. */
+export interface FilteredPlayer extends Omit<Player, 'bestFriend' | 'worstEnemy'> {
+  /** Для self — известно; для других — null (раскрывается в финале). */
+  readonly bestFriend: CharacterId | null
+  readonly worstEnemy: CharacterId | null
+}
+
+/**
+ * Отфильтрованное состояние для конкретного игрока. Не содержит rng, скрывает
+ * содержимое чужих закрытых карт, колод и приватных pile/pool.
+ * См. docs/visibility-model.md.
+ */
+export interface FilteredGameState extends Omit<GameState, 'players' | 'rng' | 'supplyById' | 'navById'> {
+  readonly viewerId: PlayerId
+  readonly players: Record<PlayerId, FilteredPlayer>
+  /** Только записи карт, которые viewer может видеть. */
+  readonly supplyById: Record<SupplyInstanceId, SupplyCard>
+  readonly navById: Record<NavCardInstanceId, NavigationCard>
+}
+
 // Реэкспорт чтобы потребители брали из одного места
 export type { CharacterId, FatigueSide, SupplyType } from './constants'

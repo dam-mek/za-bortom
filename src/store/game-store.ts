@@ -31,6 +31,8 @@ interface GameStore {
   roomCode: string | null
   events: GameEvent[]
   lastError: GameError | null
+  /** True, если соединение с host'ом потеряно (client-режим). */
+  disconnected: boolean
 
   // Local hot-seat
   startLocalGame: (players: PlayerSpec[], seed: number) => void
@@ -72,6 +74,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   roomCode: null,
   events: [],
   lastError: null,
+  disconnected: false,
 
   // ---------- Local hot-seat ----------
   startLocalGame: (players, seed) => {
@@ -159,6 +162,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       client.onLobby((lobby) => set({ lobby }))
       client.onState((view) => set({ state: view }))
       client.onGameStart((view) => set({ state: view }))
+      client.onClose(() => {
+        set({ disconnected: true })
+      })
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
@@ -215,6 +221,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       roomCode: null,
       events: [],
       lastError: null,
+      disconnected: false,
     })
   },
 }))

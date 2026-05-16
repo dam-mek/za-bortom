@@ -2,6 +2,7 @@ import { useGameStore } from '@/store/game-store'
 import type { GameState } from '@/game/types'
 import { ActionPanel } from './ActionPanel'
 import { BoatView } from './BoatView'
+import { HelpButton } from './Help'
 import { LogPane } from './LogPane'
 
 function describePhase(state: ReturnType<typeof useGameStore.getState>['state']): string {
@@ -29,6 +30,7 @@ function describePhase(state: ReturnType<typeof useGameStore.getState>['state'])
 
 export function Game() {
   const rawState = useGameStore((s) => s.state)
+  const events = useGameStore((s) => s.events)
   const lastError = useGameStore((s) => s.lastError)
   const reset = useGameStore((s) => s.reset)
   const mode = useGameStore((s) => s.mode)
@@ -37,6 +39,19 @@ export function Game() {
   // В client-режиме state — FilteredGameState; в нём players[id].bestFriend может быть null,
   // некоторые supplyById/navById отсутствуют. UI рендерит "?" / "— скрыто —".
   const state = rawState as GameState
+
+  function exportLog() {
+    const blob = new Blob(
+      [JSON.stringify({ events, state, exportedAt: new Date().toISOString() }, null, 2)],
+      { type: 'application/json' },
+    )
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `za-bortom-day${state.day}-${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <main className="min-h-screen p-4 font-mono text-white grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
@@ -51,9 +66,15 @@ export function Game() {
               </span>
             )}
           </h1>
-          <button onClick={reset} className="text-sea-300 hover:underline text-sm">
-            ← к началу
-          </button>
+          <div className="flex gap-4 items-baseline">
+            <HelpButton />
+            <button onClick={exportLog} className="text-sea-300 hover:underline text-sm">
+              💾 Лог
+            </button>
+            <button onClick={reset} className="text-sea-300 hover:underline text-sm">
+              ← к началу
+            </button>
+          </div>
         </header>
         <BoatView state={state} />
         <ActionPanel state={state} />

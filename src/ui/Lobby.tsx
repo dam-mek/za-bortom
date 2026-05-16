@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useGameStore } from '@/store/game-store'
 import type { PlayerSpec } from '@/game/state'
+import { HelpButton } from './Help'
 
 type Mode = 'menu' | 'local' | 'host' | 'client'
 
@@ -37,6 +38,9 @@ function Menu({ onPick }: { onPick: (m: Mode) => void }) {
           >
             🔗 Подключиться по коду
           </button>
+        </div>
+        <div className="pt-4">
+          <HelpButton />
         </div>
       </div>
     </main>

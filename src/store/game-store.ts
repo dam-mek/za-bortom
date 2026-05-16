@@ -6,6 +6,7 @@ import { reduce } from '@/game/reducer'
 import type { PlayerSpec } from '@/game/state'
 import { createInitialState } from '@/game/state'
 import type { FilteredGameState, GameError, GameEvent, GameState, PlayerId } from '@/game/types'
+import { filterStateForPlayer } from '@/game/visibility'
 import { SimpleBot } from '@/bots/simple-bot'
 import type { ClientController } from '@/net/client'
 import { createClient } from '@/net/client'
@@ -104,8 +105,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         lobby: host.getLobby(),
       })
       host.subscribe((state) => {
-        set({ state })
-        // Если в лобби обновилось, тоже синкаем.
+        // Host UI должен видеть свой view как любой клиент — не подсматривать чужие
+        // карты/друзей. Полный state остаётся внутри host runtime (только для reducer'а).
+        const view = filterStateForPlayer(state, hostPlayerId)
+        set({ state: view })
         if (state.phase.kind === 'lobby') set({ lobby: host.getLobby() })
       })
       // Polling lobby при изменениях клиентов (host меняет внутренне через broadcastLobby)
@@ -129,14 +132,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   hostStartGame: () => {
     const host = get().host
-    if (!host) return { kind: 'GameError', code: 'NOT_HOST', message: 'No host' } as GameError
+    const myPid = get().myPlayerId
+    if (!host || !myPid) return { kind: 'GameError', code: 'NOT_HOST', message: 'No host' } as GameError
     const r = host.startGame()
-    // r может быть GameState или GameError. Различаем через 'kind' с типом GameError.
     if ('kind' in r && r.kind === 'GameError') {
       set({ lastError: r })
       return r
     }
-    set({ state: r as GameState })
+    // Фильтруем state по host'у — UI не должно знать чужих секретов.
+    set({ state: filterStateForPlayer(r as GameState, myPid) })
     return null
   },
 

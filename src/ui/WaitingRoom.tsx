@@ -6,6 +6,7 @@ export function WaitingRoom() {
   const roomCode = useGameStore((s) => s.roomCode)
   const myPlayerId = useGameStore((s) => s.myPlayerId)
   const hostStartGame = useGameStore((s) => s.hostStartGame)
+  const hostAddBot = useGameStore((s) => s.hostAddBot)
   const setReady = useGameStore((s) => s.setReady)
   const reset = useGameStore((s) => s.reset)
   const lastError = useGameStore((s) => s.lastError)
@@ -44,7 +45,7 @@ export function WaitingRoom() {
               }`}
             >
               <span>
-                {p.displayName} {p.id === lobby.hostId && '👑'}{' '}
+                {p.displayName} {p.id === lobby.hostId && '👑'} {p.isBot && '🤖'}{' '}
                 {p.id === myPlayerId && <span className="text-sea-300">(вы)</span>}
               </span>
               <span className="text-sm">
@@ -64,6 +65,15 @@ export function WaitingRoom() {
             </div>
           )}
         </div>
+
+        {mode === 'host' && lobby.players.length < 6 && (
+          <button
+            onClick={() => hostAddBot()}
+            className="w-full bg-purple-700 hover:bg-purple-600 px-4 py-2 rounded text-sm"
+          >
+            🤖 Добавить бота
+          </button>
+        )}
 
         {mode === 'client' && (
           <button

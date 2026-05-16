@@ -2,6 +2,7 @@
 // Принимает connections от клиентов, обрабатывает их ACTION'ы через reducer,
 // рассылает FilteredGameState каждому.
 
+import type { Bot } from '@/bots/bot'
 import type { Action } from '@/game/actions'
 import { reduce } from '@/game/reducer'
 import type { PlayerSpec } from '@/game/state'
@@ -39,6 +40,10 @@ export interface HostController {
   dispatch(action: Action): GameError | null
   /** Получить current LobbyState (если ещё в лобби). */
   getLobby(): LobbyState
+  /** Добавить бота в лобби. Возвращает выданный playerId. */
+  addBot(name: string, makeBot: (pid: PlayerId) => Bot): PlayerId
+  /** Привязать бота к существующему игроку (для self-play / host-бота). */
+  attachBot(playerId: PlayerId, bot: Bot): void
   /** Подписка на изменения state на стороне host'а. */
   subscribe(handler: (state: GameState) => void): () => void
   /** Закрыть host. */
@@ -48,22 +53,74 @@ export interface HostController {
 /** Создать host-controller. */
 export function createHost(opts: HostOptions): HostController {
   const slots = new Map<PlayerId, ClientSlot>()
+  const bots = new Map<PlayerId, Bot>()
   let hostId = ''
   let hostPlayerId: PlayerId = ''
   let state: GameState | null = null
   let nextPlayerNum = 1
   const subscribers: Array<(s: GameState) => void> = []
   const maxPlayers = opts.maxPlayers ?? 6
+  const isBot = new Set<PlayerId>()
 
-  function emit() {
+  function broadcast() {
     if (!state) return
     for (const sub of subscribers) sub(state)
-    // Разослать STATE_UPDATE всем подключённым клиентам.
     for (const slot of slots.values()) {
       if (slot.disconnected) continue
-      if (slot.playerId === hostPlayerId) continue // host сам себе не шлёт через сеть
+      if (slot.playerId === hostPlayerId) continue
+      if (isBot.has(slot.playerId)) continue
       const view = filterStateForPlayer(state, slot.playerId)
       send(slot.conn, { kind: 'state-update', view })
+    }
+  }
+
+  function emit() {
+    broadcast()
+    driveBots()
+  }
+
+  /** После каждого state-update проходим ботов: пусть ходят, пока могут. */
+  function driveBots() {
+    if (!state) return
+    if (bots.size === 0) return
+    let iterations = 0
+    const maxIter = 2000
+    while (iterations++ < maxIter) {
+      let acted = false
+      for (const bot of bots.values()) {
+        if (!state) break
+        const view = filterStateForPlayer(state, bot.playerId)
+        const action = bot.decide(view)
+        if (!action) continue
+        const r = reduce(state, action)
+        if (r.ok) {
+          state = r.state
+          broadcast()
+          acted = true
+          break // перезапуск цикла — state изменился
+        } else {
+          // Бот вернул невалидное действие — пробуем SKIP fallback и идём дальше.
+          if (
+            state.phase.kind === 'day' &&
+            state.phase.subPhase.kind === 'waitingForAction' &&
+            state.seats[state.phase.subPhase.currentSeat]?.occupantId === bot.playerId
+          ) {
+            const skip = reduce(state, { kind: 'SKIP_TURN', playerId: bot.playerId })
+            if (skip.ok) {
+              state = skip.state
+              broadcast()
+              acted = true
+              break
+            }
+          }
+          // Логируем и НЕ повторяем тот же action (бот в следующей итерации может выдать другой).
+          console.warn('[bot]', bot.playerId, 'invalid', action, r.error)
+        }
+      }
+      if (!acted) break
+    }
+    if (iterations >= maxIter) {
+      console.error('[bot] driveBots exceeded max iterations — possible deadlock')
     }
   }
 
@@ -84,11 +141,12 @@ export function createHost(opts: HostOptions): HostController {
     const players: LobbyPlayer[] = []
     for (const slot of slots.values()) {
       const isHost = slot.playerId === hostPlayerId
+      const bot = isBot.has(slot.playerId)
       players.push({
         id: slot.playerId,
         displayName: nameOf(slot.playerId),
-        isBot: false,
-        ready: isHost ? true : slot.ready,
+        isBot: bot,
+        ready: isHost || bot ? true : slot.ready,
         disconnected: slot.disconnected,
       })
     }
@@ -328,6 +386,37 @@ export function createHost(opts: HostOptions): HostController {
     },
 
     getLobby: computeLobby,
+
+    attachBot(playerId, bot) {
+      isBot.add(playerId)
+      bots.set(playerId, bot)
+      // Если игра уже идёт — пнём ботов.
+      if (state) driveBots()
+    },
+
+    addBot(name, makeBot) {
+      if (state !== null) throw new Error('Cannot add bot after game started')
+      if (slots.size >= maxPlayers) throw new Error('Room full')
+      const pid = addPlayer(name)
+      isBot.add(pid)
+      const fakeConn: NetConnection = {
+        remoteId: pid,
+        send: () => {},
+        onData: () => () => {},
+        onClose: () => () => {},
+        close: () => {},
+      }
+      slots.set(pid, {
+        conn: fakeConn,
+        clientToken: `bot-${pid}`,
+        playerId: pid,
+        ready: true,
+        disconnected: false,
+      })
+      bots.set(pid, makeBot(pid))
+      broadcastLobby()
+      return pid
+    },
 
     subscribe(handler) {
       subscribers.push(handler)

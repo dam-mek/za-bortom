@@ -6,6 +6,7 @@ import { reduce } from '@/game/reducer'
 import type { PlayerSpec } from '@/game/state'
 import { createInitialState } from '@/game/state'
 import type { FilteredGameState, GameError, GameEvent, GameState, PlayerId } from '@/game/types'
+import { SimpleBot } from '@/bots/simple-bot'
 import type { ClientController } from '@/net/client'
 import { createClient } from '@/net/client'
 import type { HostController } from '@/net/host'
@@ -37,6 +38,7 @@ interface GameStore {
   // Host mode
   createRoom: (hostName: string, roomCode?: string) => Promise<{ ok: true; code: string } | { ok: false; error: string }>
   hostStartGame: () => GameError | null
+  hostAddBot: (name?: string) => void
 
   // Client mode
   joinRoom: (
@@ -112,6 +114,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
+  },
+
+  hostAddBot: (name) => {
+    const host = get().host
+    if (!host) return
+    const botName = name ?? `Bot${Math.floor(Math.random() * 100)}`
+    host.addBot(botName, (pid) => new SimpleBot(pid))
+    set({ lobby: host.getLobby() })
   },
 
   hostStartGame: () => {

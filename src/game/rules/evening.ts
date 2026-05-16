@@ -129,22 +129,26 @@ export function eveningSelectNavCard(
   const sub = state.phase.subPhase
   if (sub.pickerId !== action.playerId) return err('NOT_YOUR_TURN', `Only picker can select`)
 
-  // Если pool пуст — взять верх колоды.
+  // Если pool пуст — взять верх колоды, action.navCardId игнорируется (выбора нет).
   let pool = sub.pool
   let working = state
+  let chosen: typeof action.navCardId
   if (pool.length === 0) {
     const { drawn, state: afterDraw } = drawNavCards(state, 1)
     if (drawn.length === 0) return err('EMPTY_DECK', `No nav cards available`)
     pool = drawn
     working = afterDraw
+    chosen = drawn[0]!
+  } else {
+    if (!pool.includes(action.navCardId)) {
+      return err('CARD_NOT_OWNED', `Card ${action.navCardId} not in pool`)
+    }
+    chosen = action.navCardId
   }
-  if (!pool.includes(action.navCardId)) {
-    return err('CARD_NOT_OWNED', `Card ${action.navCardId} not in pool`)
-  }
-  const discarded = pool.filter((id) => id !== action.navCardId)
+  const discarded = pool.filter((id) => id !== chosen)
   working = { ...working, navDiscard: [...working.navDiscard, ...discarded] }
 
-  return resolveCard(working, action.navCardId)
+  return resolveCard(working, chosen)
 }
 
 // ============================================================================

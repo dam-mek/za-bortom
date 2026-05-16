@@ -2,8 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Бумага / чернила — базовая палитра журнала (day по умолчанию). */
+  --bg-paper: #f1e6cf;
+  --bg-paper-deep: #d9c8a0;
+  --ink: #1a2438;
+  --ink-faint: #4a5572;
+  /* Атмосферный фон-«свет», поверх бумаги. Меняется theme provider'ом. */
+  --atmos-tint: #0ea5e9; /* day */
+  --atmos-tint-soft: rgba(14, 165, 233, 0.18);
+  --atmos-tint-deep: rgba(14, 165, 233, 0.55);
+  --atmos-fog: rgba(255, 248, 230, 0);
+  /* Длительность фазового перехода. */
+  --phase-transition: 1500ms;
+}
+
 html,
 body,
 #root {
   height: 100%;
+}
+
+body {
+  font-family: 'Spectral', Georgia, serif;
+  color: var(--ink);
+  background-color: var(--bg-paper);
+  /* Базовый светофильтр атмосферы — мягкий цветной wash поверх бумаги. */
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 0%, var(--atmos-tint-soft), transparent 70%),
+    radial-gradient(ellipse 60% 80% at 50% 100%, var(--atmos-tint-soft), transparent 70%);
+  transition:
+    background-color var(--phase-transition) ease,
+    color var(--phase-transition) ease;
+  overflow-x: hidden;
+}
+
+/* Скроллбар в стиле журнала. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(26, 36, 56, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(26, 36, 56, 0.5);
+}
+
+/* Утилитарные классы для атмосферы. */
+@layer utilities {
+  .text-stamp {
+    font-family: 'Yeseva One', Georgia, serif;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .text-hand {
+    font-family: 'Caveat', cursive;
+    font-weight: 500;
+  }
+  .text-journal {
+    font-family: 'Spectral', Georgia, serif;
+  }
+  .text-data {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  /* Лёгкая бумажная зернистость как наложение. */
+  .grain-overlay {
+    position: relative;
+  }
+  .grain-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.06  0 0 0 0 0.04  0 0 0 0.22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.45;
+    mix-blend-mode: multiply;
+    z-index: 0;
+  }
+  /* Чернильный край — лёгкая тёмная виньетка. */
+  .ink-edge {
+    box-shadow:
+      inset 0 0 0 1px rgba(26, 36, 56, 0.25),
+      inset 0 0 24px rgba(26, 36, 56, 0.18);
+  }
+  /* Рваный край бумаги (волнистый, грубый). */
+  .torn-edge {
+    --d: 6px;
+    mask-image:
+      radial-gradient(circle at center, #000 100%, transparent 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><circle cx='5' cy='5' r='4' fill='black'/></svg>");
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

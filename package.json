@@ -7,10 +7,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "deploy": "npm run build && wrangler deploy",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "npm run build && wrangler dev",
+    "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",

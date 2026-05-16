@@ -2,6 +2,8 @@
 
 Контекст проекта для Claude Code. Читай этот файл в начале каждой сессии и при сомнениях.
 
+> **Первым делом** открой [`docs/STATUS.md`](./docs/STATUS.md) — там актуальная картина: что готово, что осталось, какие TODO. Файлы дизайна (`docs/*.md`) — справочные, могут расходиться с кодом; авторитет — [`docs/decisions.md`](./docs/decisions.md).
+>
 > Merged from `CLAUDE.md` + `CLAUDE-2.md` on 2026-05-15.
 
 ## Что строим
@@ -97,9 +99,9 @@ function reduce(state: GameState, action: Action): ReducerResult
 - debug-replay
 - self-play ботов
 
-### 7. Одна машина фаз, один источник истины
+### 7. Phase — поле GameState, переходы в reducer'е
 
-XState владеет phase. Reducer принимает action только если FSM в state, который его разрешает. Тесты покрывают обе стороны.
+`GameState.phase` — discriminated union (`{ kind: 'morning'; subPhase: ... } | ...`). Все переходы делает `reduce()` через делегацию в `src/game/rules/*.ts`. Невалидный action в текущей фазе → `WRONG_PHASE`/`NOT_YOUR_TURN` через guard'ы (`requireMyDayTurn` и т.п.). Тесты `tests/game/*.test.ts` покрывают каждую переходную ветку. См. [`decisions.md`](./docs/decisions.md) #23 — почему не XState.
 
 ### 8. Покрытие игровой логики ≥ 90%
 
@@ -107,62 +109,52 @@ UI и net могут быть ниже. Scoring, fight resolution, evening navig
 
 ## Структура проекта
 
+Подробное описание каждого файла — в [`README.md`](./README.md) §«Структура проекта». Кратко:
+
 ```
 src/
-  game/
-    types.ts          # GameState, Action, Card, Player, Phase, ...
-    state.ts          # initialState, фабрики
-    actions.ts        # discriminated union Action
-    reducer.ts        # (state, action) => ReducerResult — главный диспатчер
-    rules/
-      setup.ts        # раздача ролей, друзей, врагов
-      morning.ts      # раздача припасов
-      day.ts          # дневные действия (диспатчер)
-      row.ts          # «Погрести»
-      swap.ts         # «Поменяться местами»
-      rob.ts          # «Ограбить»
-      fight.ts        # драка (общая для swap/rob)
-      use-supply.ts   # special supplies
-      shket-steal.ts  # способность Шкета
-      trade.ts        # обмен/дарение/выброс
-      evening.ts      # навигация
-      scoring.ts      # подсчёт очков
-    visibility.ts     # filterStateForPlayer(state, viewerId)
-    prng.ts           # обёртка seedrandom: createPRNG, shuffle, pick
-    constants.ts      # CHARACTERS, SUPPLY_PROPS, состав колод
-    invariants.ts     # checkInvariants(state): InvariantError[]
-    fixtures.ts       # готовые состояния для тестов
-  fsm/
-    machine.ts        # XState машина фаз
-  net/
-    peer.ts           # PeerJS обёртка (createHost, createClient)
-    protocol.ts       # ClientMessage, HostMessage
-    host.ts           # host runtime
-    client.ts         # client runtime
-    serialization.ts  # JSON (вкл. Map/Set если нужно)
+  game/                 # pure logic (ни React, ни PeerJS)
+    types.ts            # GameState, Phase, Action contract, FilteredGameState
+    actions.ts          # discriminated union Action (kind:)
+    constants.ts        # CHARACTERS, SUPPLY_PROPS, размеры колод
+    prng.ts             # mulberry32 (детерминированный, функциональный)
+    state.ts            # createInitialState — раздача
+    reducer.ts          # главный диспатчер по action.kind
+    visibility.ts       # filterStateForPlayer(state, viewerId)
+    invariants.ts       # checkInvariants(state) — 10 проверок
+    rules/              # по правилу на файл
+      _helpers.ts       # advanceTurn, drawNavCards, addSeagull, applyWoundDelta
+      morning.ts row.ts swap.ts rob.ts fight.ts
+      shket-steal.ts use-supply.ts trade.ts evening.ts scoring.ts
+  net/                  # P2P через PeerJS
+    protocol.ts         # ClientMessage / HostMessage (kebab-case)
+    transport.ts        # абстракция (mockable)
+    peerjs-transport.ts # production адаптер
+    in-memory-transport.ts # in-process mock для тестов
+    host.ts             # HostController (join flow, broadcast, drives ботов)
+    client.ts           # ClientController (dispatch+ack, подписки)
   bots/
-    bot.ts            # interface Bot { decide(state): Action }
-    simple-bot.ts     # эвристический бот
+    bot.ts              # interface Bot
+    simple-bot.ts       # эвристический
   store/
-    game-store.ts     # Zustand: текущий filtered state
-    ui-store.ts       # Zustand: UI-only state (модалки, hover)
-  ui/
-    Lobby/  Boat/  Hand/  Actions/  NavCard/  Fight/  Log/  common/
-  App.tsx
-  main.tsx
-tests/
-  game/
-  fixtures/
+    game-store.ts       # Zustand, режимы local/host/client
+  ui/                   # React-компоненты (плоско, без подпапок)
+    App.tsx (на самом деле в src/)
+    Lobby.tsx WaitingRoom.tsx Game.tsx
+    BoatView.tsx ActionPanel.tsx LogPane.tsx
+    Help.tsx DisconnectModal.tsx
+tests/                  # зеркало src/, vitest
+  game/  net/  bots/
 docs/
-  game-rules.md          # формализованные правила (источник истины)
-  game-spec.md           # типы, actions, reducer contract
-  network-protocol.md    # P2P-протокол, фильтрация state
-  state-machine.md       # XState фазы
-  visibility-model.md    # что видит каждый игрок
-  bots.md                # спецификация ботов
-  roadmap.md             # фазы разработки с acceptance-критериями
-public/
-  assets/
+  STATUS.md             # текущее состояние (читать первым)
+  game-rules.md         # правила игры (источник истины)
+  game-spec.md          # типы, actions, reducer contract
+  network-protocol.md   # P2P wire-протокол
+  state-machine.md      # логическая карта фаз (XState НЕ реализован)
+  visibility-model.md   # что видит игрок
+  bots.md               # эвристики ботов
+  roadmap.md            # история плана (все фазы выполнены, см. STATUS)
+  decisions.md          # резолюции 23 open questions (авторитет!)
 ```
 
 ## Конвенции кода
@@ -201,23 +193,30 @@ public/
 
 ## Критические инварианты
 
-Гоняются в dev-режиме каждое обновление state (`src/game/invariants.ts`):
+Гоняются в тестах (`src/game/invariants.ts:checkInvariants`):
 
-1. Сумма карт по всем стопкам и игрокам = константа.
-2. Любой персонаж в `seats` существует ровно один раз.
-3. У персонажа без сознания `wounds === character.strength`; у мёртвого `wounds > character.strength`.
-4. После драки все участники получили `fatigue >= 1`; проигравшая сторона — `wounds += 1`.
-5. После раскрытия карты навигации все её эффекты применены (чайки, за борт, жажда).
-6. Сумма seagullTokens на корме ≤ 4. При = 4 — переход в `scoring`.
+1. Сумма карт supply (deck + discard + у игроков + `morning.pile`) = 42.
+2. Сумма карт nav (deck + discard + pool + `evening.sternPicking.pool` или `resolving.cardId`) = 24.
+3. Любой персонаж присутствует ровно один раз; не пересекается с `removedCharacters`.
+4. `consciousness` соответствует `wounds`: `< strength` → conscious; `==` → unconscious; `>` → dead.
+5. `seagullTokens` в `[0, 4]`. При `== 4` → фаза `scoring` или `finished`.
+6. `seats.length === 6`. `removed seats` = `6 − len(players)`.
+7. `removedCharacters.length` = `6 − len(players)` (для 4-/5-игрового сетапа).
+8. `turnOrder` ⊆ обитаемые банки (проверяется только в `phase=day`).
+9. `phase=finished` ⇒ `finalScores != null`.
+10. Все ссылки `supplyId` в state валидны (есть в `supplyById`).
+
+После драки все участники получают `fought=true`; проигравшая сторона — `wounds += 1` (применяется через `applyWoundDelta`, который автоматически пересчитывает consciousness).
 
 ## Где что искать
 
+- **Что готово / что осталось?** → [`docs/STATUS.md`](./docs/STATUS.md) — актуальный срез проекта.
+- **Структура файлов?** → [`README.md`](./README.md) §«Структура проекта».
 - **Вопрос по правилам?** → [`docs/game-rules.md`](./docs/game-rules.md). Если неясно — СПРОСИ, не гадай.
-- **Добавляешь action?** → обнови [`docs/game-spec.md`](./docs/game-spec.md), потом `types.ts`, reducer, тесты, UI.
-- **Добавляешь переход фазы?** → [`docs/state-machine.md`](./docs/state-machine.md) первым.
-- **Sync / multiplayer issue?** → [`docs/network-protocol.md`](./docs/network-protocol.md).
-- **Что видит игрок?** → [`docs/visibility-model.md`](./docs/visibility-model.md).
-- **Где сейчас находимся в проекте?** → [`docs/roadmap.md`](./docs/roadmap.md).
+- **Добавляешь action?** → обнови [`docs/game-spec.md`](./docs/game-spec.md), потом `types.ts`, reducer (`src/game/rules/*.ts`), тесты, UI (`src/ui/ActionPanel.tsx`).
+- **Добавляешь переход фазы?** → [`docs/state-machine.md`](./docs/state-machine.md) (логическая карта) первым, потом в коде.
+- **Sync / multiplayer issue?** → [`docs/network-protocol.md`](./docs/network-protocol.md) + `src/net/*.ts`.
+- **Что видит игрок?** → [`docs/visibility-model.md`](./docs/visibility-model.md) + `src/game/visibility.ts`.
 - **Принятые решения (резолюции open questions)?** → [`docs/decisions.md`](./docs/decisions.md) — этот файл перевешивает остальные доки при расхождении.
 
 ## Чего НЕ делать
@@ -232,22 +231,31 @@ public/
 
 - Voice chat (используем внешний Discord)
 - In-app text chat (решение отложено)
-- Hot-seat (решение: нет — сразу P2P)
 - Mobile-first UI (desktop-first; mobile — будущая фаза)
 - Custom art / non-minimalist visuals (минимализм сейчас, арт потом)
-- Public hosting / accounts / persistence (P2P, эфемерная сессия)
-- Spectator mode (только мёртвые наблюдают)
+- Spectator mode для не-игроков (только мёртвые наблюдают)
+- Host migration (если хост отвалился — игра завершается; DisconnectModal у клиентов)
+
+> **NB:** Hot-seat изначально был помечен out-of-scope, но был реализован для удобства разработки/тестирования. Сейчас это полноценный режим в `Lobby.tsx`.
 
 ## Definition of done для задачи
 
 - [ ] Типы в `types.ts` обновлены (если применимо)
-- [ ] Reducer обрабатывает новые action(s), возвращает типизированный `GameError` на невалидный ввод
+- [ ] Reducer / `rules/*.ts` обрабатывает новые action(s), возвращает типизированный `GameError` на невалидный ввод
 - [ ] Тесты (happy path + ≥ 2 edge cases из `docs/game-rules.md`)
-- [ ] FSM обновлена, guards добавлены если action phase-restricted
-- [ ] Visibility-фильтр обрабатывает новые приватные поля
+- [ ] Phase-guards добавлены в reducer если action phase-restricted (`requireMyDayTurn` и т.п.)
+- [ ] Visibility-фильтр обрабатывает новые приватные поля (если есть)
+- [ ] Инварианты в `invariants.ts` учитывают новые поля (если влияют на сохранение карт/банок)
 - [ ] `npm run typecheck && npm run test:run && npm run lint` зелёные
 - [ ] Если user-facing — UI smoke-test вручную
 
-## Следующие шаги
+## Текущее состояние
 
-См. [`docs/roadmap.md`](./docs/roadmap.md) — разбивка на фазы 0–10 с acceptance-критериями.
+См. [`docs/STATUS.md`](./docs/STATUS.md) — что готово, что осталось. Roadmap ([`docs/roadmap.md`](./docs/roadmap.md)) выполнен (Фаза 6 пропущена осознанно, Фаза 10 частично).
+
+## Стек разработки и деплоя
+
+- **Dev:** `npm run dev` → Vite на `localhost:5173`.
+- **Тесты:** `npm test` / `npm run test:run` / `npm run test:ui`.
+- **Деплой:** Cloudflare Workers через `wrangler` (`wrangler.jsonc`, скрипт `npm run deploy`).
+- **Альтернативно для друзей без деплоя:** `ngrok http 5173`.

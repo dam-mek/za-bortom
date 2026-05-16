@@ -35,14 +35,25 @@ export function Game() {
   const reset = useGameStore((s) => s.reset)
   const mode = useGameStore((s) => s.mode)
   const myPlayerId = useGameStore((s) => s.myPlayerId)
+  const debugMode = useGameStore((s) => s.debugMode)
+  const toggleDebugMode = useGameStore((s) => s.toggleDebugMode)
+  const getFullState = useGameStore((s) => s.getFullState)
   if (!rawState) return null
   // В client-режиме state — FilteredGameState; в нём players[id].bestFriend может быть null,
   // некоторые supplyById/navById отсутствуют. UI рендерит "?" / "— скрыто —".
   const state = rawState as GameState
 
   function exportLog() {
+    // Если host — используем полный state. Иначе берём фильтрованный из rawState.
+    const full = getFullState() ?? state
     const blob = new Blob(
-      [JSON.stringify({ events, state, exportedAt: new Date().toISOString() }, null, 2)],
+      [
+        JSON.stringify(
+          { events, state: full, exportedAt: new Date().toISOString(), mode },
+          null,
+          2,
+        ),
+      ],
       { type: 'application/json' },
     )
     const url = URL.createObjectURL(blob)
@@ -68,6 +79,15 @@ export function Game() {
           </h1>
           <div className="flex gap-4 items-baseline">
             <HelpButton />
+            {mode === 'host' && (
+              <button
+                onClick={toggleDebugMode}
+                className={`text-sm hover:underline ${debugMode ? 'text-yellow-300' : 'text-sea-300'}`}
+                title="Показать полный state (cheat-mode для отладки)"
+              >
+                👁 {debugMode ? 'Debug: вкл' : 'Debug'}
+              </button>
+            )}
             <button onClick={exportLog} className="text-sea-300 hover:underline text-sm">
               💾 Лог
             </button>

@@ -34,6 +34,8 @@ interface GameStore {
   lastError: GameError | null
   /** True, если соединение с host'ом потеряно (client-режим). */
   disconnected: boolean
+  /** Debug-режим (только host): показывает полный state, минуя visibility-фильтр. */
+  debugMode: boolean
 
   // Local hot-seat
   startLocalGame: (players: PlayerSpec[], seed: number) => void
@@ -53,6 +55,11 @@ interface GameStore {
   // Common
   dispatch: (action: Action) => Promise<boolean>
   reset: () => void
+
+  // Debug (host only)
+  toggleDebugMode: () => void
+  /** Получить полный state (для отладки). null если не host или нет state. */
+  getFullState: () => GameState | null
 }
 
 function clientToken(): string {
@@ -76,6 +83,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   events: [],
   lastError: null,
   disconnected: false,
+  // По умолчанию выкл; если в URL есть ?debug — включаем сразу.
+  debugMode:
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug'),
 
   // ---------- Local hot-seat ----------
   startLocalGame: (players, seed) => {
@@ -105,11 +115,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
         lobby: host.getLobby(),
       })
       host.subscribe((state) => {
-        // Host UI должен видеть свой view как любой клиент — не подсматривать чужие
-        // карты/друзей. Полный state остаётся внутри host runtime (только для reducer'а).
-        const view = filterStateForPlayer(state, hostPlayerId)
+        // Host UI обычно видит свой view как любой клиент — не подсматривает чужие карты/друзей.
+        // В debugMode UI получает полный state (для отладки/просмотра партии).
+        const debugMode = get().debugMode
+        const view = debugMode ? state : filterStateForPlayer(state, hostPlayerId)
         set({ state: view })
         if (state.phase.kind === 'lobby') set({ lobby: host.getLobby() })
+        // Автосохранение последнего state в localStorage (debug-помощник).
+        try {
+          localStorage.setItem(
+            'za-bortom:last-snapshot',
+            JSON.stringify({ savedAt: new Date().toISOString(), state }),
+          )
+        } catch {
+          // localStorage может быть отключён — игнор.
+        }
       })
       // Polling lobby при изменениях клиентов (host меняет внутренне через broadcastLobby)
       // — для упрощения пересчитаем через setInterval:
@@ -140,7 +160,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return r
     }
     // Фильтруем state по host'у — UI не должно знать чужих секретов.
-    set({ state: filterStateForPlayer(r as GameState, myPid) })
+    const full = r as GameState
+    const view = get().debugMode ? full : filterStateForPlayer(full, myPid)
+    set({ state: view })
     return null
   },
 
@@ -227,5 +249,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastError: null,
       disconnected: false,
     })
+  },
+
+  toggleDebugMode: () => {
+    const next = !get().debugMode
+    set({ debugMode: next })
+    // Применить немедленно к текущему state, если host.
+    const host = get().host
+    const myPid = get().myPlayerId
+    if (host && myPid) {
+      const full = host.getState()
+      if (full) {
+        const view = next ? full : filterStateForPlayer(full, myPid)
+        set({ state: view })
+      }
+    }
+  },
+
+  getFullState: () => {
+    const host = get().host
+    return host ? host.getState() : null
   },
 }))

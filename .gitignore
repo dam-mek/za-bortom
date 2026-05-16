@@ -41,3 +41,9 @@ coverage/
 # Claude Code local user settings + worktrees
 .claude/settings.local.json
 .claude/worktrees/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example

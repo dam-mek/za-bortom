@@ -7,9 +7,10 @@
     "node": ">=20"
   },
   "scripts": {
+    "deploy": "npm run build && wrangler deploy",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
+    "preview": "npm run build && wrangler dev",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
@@ -29,6 +30,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.37.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.13.0",
@@ -47,7 +49,8 @@
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.13.0",
-    "vite": "^5.4.10",
-    "vitest": "^2.1.4"
+    "vite": "^6.0.0",
+    "vitest": "^2.1.4",
+    "wrangler": "^4.92.0"
   }
 }

@@ -8,6 +8,11 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
+    // Гарантируем единственный экземпляр React (motion подтягивает свою копию иначе).
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    include: ['motion/react', 'react', 'react-dom'],
   },
   server: {
     port: 5173,

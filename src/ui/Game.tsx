@@ -2,111 +2,91 @@ import { useGameStore } from '@/store/game-store'
 import type { GameState } from '@/game/types'
 import { ActionPanel } from './ActionPanel'
 import { BoatView } from './BoatView'
-import { HelpButton } from './Help'
+import { GameHeader } from './GameHeader'
+import { InventoryRail, findActorPlayerId, getActor } from './InventoryRail'
 import { LogPane } from './LogPane'
+import { POVPanel } from './POVPanel'
+import { ScoringScreen } from './ScoringScreen'
+import { SupplyDeckCard, NavDeckCard } from './DeckCards'
 
-function describePhase(state: ReturnType<typeof useGameStore.getState>['state']): string {
-  if (!state) return ''
-  const p = state.phase
-  switch (p.kind) {
-    case 'lobby':
-      return 'лобби'
-    case 'setup':
-      return 'подготовка'
-    case 'morning':
-      return `утро (${p.subPhase.kind})`
-    case 'day':
-      return `день (${p.subPhase.kind})`
-    case 'evening': {
-      if (p.subPhase.kind === 'resolving') return `вечер (resolving / ${p.subPhase.step.kind})`
-      return `вечер (${p.subPhase.kind})`
-    }
-    case 'scoring':
-      return 'подсчёт'
-    case 'finished':
-      return 'окончена'
-  }
-}
-
+/**
+ * Главный игровой экран. Layout см. docs/design-roadmap.md §4.
+ */
 export function Game() {
   const rawState = useGameStore((s) => s.state)
-  const events = useGameStore((s) => s.events)
-  const lastError = useGameStore((s) => s.lastError)
-  const reset = useGameStore((s) => s.reset)
   const mode = useGameStore((s) => s.mode)
   const myPlayerId = useGameStore((s) => s.myPlayerId)
-  const debugMode = useGameStore((s) => s.debugMode)
-  const toggleDebugMode = useGameStore((s) => s.toggleDebugMode)
-  const getFullState = useGameStore((s) => s.getFullState)
+  const lastError = useGameStore((s) => s.lastError)
+
   if (!rawState) return null
-  // В client-режиме state — FilteredGameState; в нём players[id].bestFriend может быть null,
-  // некоторые supplyById/navById отсутствуют. UI рендерит "?" / "— скрыто —".
   const state = rawState as GameState
 
-  function exportLog() {
-    // Если host — используем полный state. Иначе берём фильтрованный из rawState.
-    const full = getFullState() ?? state
-    const blob = new Blob(
-      [
-        JSON.stringify(
-          { events, state: full, exportedAt: new Date().toISOString(), mode },
-          null,
-          2,
-        ),
-      ],
-      { type: 'application/json' },
-    )
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `za-bortom-day${state.day}-${Date.now()}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+  // Финальный экран — отдельная страница журнала.
+  if (state.phase.kind === 'finished') {
+    return <ScoringScreen state={state} />
   }
 
+  // POV-панель: в multiplayer — свой POV, в hot-seat — POV текущего ходящего.
+  // (Всегда видна, чтобы игроки помнили за кого играют и кто их друг/враг.)
+  const povPlayerId: string | null =
+    mode === 'local' ? findActorPlayerId(state) : (myPlayerId ?? null)
+  const actor = getActor(state, myPlayerId ?? null)
+  const inventoryTitle =
+    mode === 'local' ? 'Инвентарь хода' : 'Ваш инвентарь'
+
   return (
-    <main className="min-h-screen p-4 font-mono text-white grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
-      <section className="space-y-4">
-        <header className="flex justify-between items-baseline">
-          <h1 className="text-2xl">
-            <span className="text-sea-300">День {state.day} · </span>
-            <span>{describePhase(state)}</span>
-            {mode !== 'local' && myPlayerId && (
-              <span className="ml-3 text-sm text-yellow-300">
-                · вы: {state.players[myPlayerId]?.displayName ?? myPlayerId} ({mode})
-              </span>
-            )}
-          </h1>
-          <div className="flex gap-4 items-baseline">
-            <HelpButton />
-            {mode === 'host' && (
-              <button
-                onClick={toggleDebugMode}
-                className={`text-sm hover:underline ${debugMode ? 'text-yellow-300' : 'text-sea-300'}`}
-                title="Показать полный state (cheat-mode для отладки)"
-              >
-                👁 {debugMode ? 'Debug: вкл' : 'Debug'}
-              </button>
-            )}
-            <button onClick={exportLog} className="text-sea-300 hover:underline text-sm">
-              💾 Лог
-            </button>
-            <button onClick={reset} className="text-sea-300 hover:underline text-sm">
-              ← к началу
-            </button>
+    <main className="relative min-h-screen p-4 pb-32 text-ink">
+      <div className="mx-auto flex max-w-[1480px] flex-col gap-4">
+        <GameHeader state={state} />
+
+        <div className="flex gap-4">
+          {povPlayerId && (
+            <POVPanel
+              state={state}
+              myPlayerId={povPlayerId}
+              hotSeat={mode === 'local'}
+            />
+          )}
+
+          <div className="flex-1 min-w-0">
+            <BoatView state={state} />
           </div>
-        </header>
-        <BoatView state={state} />
-        <ActionPanel state={state} />
+
+          <aside className="flex w-[160px] shrink-0 flex-col gap-3">
+            <SupplyDeckCard
+              remaining={state.supplyDeck.length}
+              discard={state.supplyDiscard.length}
+            />
+            <NavDeckCard
+              remaining={state.navDeck.length}
+              discard={state.navDiscard.length}
+            />
+          </aside>
+        </div>
+
+        <InventoryRail state={state} actor={actor} title={inventoryTitle} />
+
+        <div
+          className="rounded-sm border border-ink/20 p-3 shadow-emboss"
+          style={{
+            background:
+              'linear-gradient(180deg, var(--bg-paper, #f1e6cf) 0%, var(--bg-paper-deep, #d9c8a0) 100%)',
+          }}
+        >
+          <ActionPanel state={state} />
+        </div>
+
         {lastError && (
-          <div className="text-red-300 bg-red-900/30 border border-red-700 p-3 rounded text-sm">
-            ⚠ <strong>{lastError.code}</strong>: {lastError.message}
+          <div className="rounded-sm border-2 border-card-enemy/70 bg-card-enemy/20 p-3 text-card-enemy-deep">
+            <span className="font-stamp text-[13px] tracking-stamp">
+              {lastError.code}
+            </span>
+            <span className="ml-2 font-serif text-[14px]">{lastError.message}</span>
           </div>
         )}
-      </section>
-      <aside>
+
         <LogPane />
-      </aside>
+      </div>
     </main>
   )
 }

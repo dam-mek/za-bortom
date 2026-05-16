@@ -3,6 +3,10 @@ import { DisconnectModal } from '@/ui/DisconnectModal'
 import { Game } from '@/ui/Game'
 import { Lobby } from '@/ui/Lobby'
 import { WaitingRoom } from '@/ui/WaitingRoom'
+import { PaperTexture } from '@/ui/atmosphere/PaperTexture'
+import { Seagulls } from '@/ui/atmosphere/Seagulls'
+import { WeatherLayer } from '@/ui/atmosphere/WeatherLayer'
+import { ThemeProvider } from '@/ui/theme'
 
 export default function App() {
   const mode = useGameStore((s) => s.mode)
@@ -17,10 +21,14 @@ export default function App() {
     ) : (
       <Lobby />
     )
+
   return (
-    <>
-      {screen}
+    <ThemeProvider>
+      <WeatherLayer />
+      <PaperTexture />
+      <Seagulls />
+      <div className="relative z-10 min-h-screen text-ink">{screen}</div>
       <DisconnectModal />
-    </>
+    </ThemeProvider>
   )
 }

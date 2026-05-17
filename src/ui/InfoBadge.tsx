@@ -124,8 +124,17 @@ export function InfoBadge({
           e.stopPropagation()
           setPinned((p) => !p)
         }}
-        className="inline-flex items-center justify-center rounded-full border-2 border-ink bg-paper text-ink shadow-sm transition hover:bg-accent hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        style={{ width: size + 8, height: size + 8 }}
+        className="inline-flex items-center justify-center rounded-full border-2 bg-paper shadow-sm transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        style={{
+          width: size + 4,
+          height: size + 4,
+          borderColor: showing
+            ? 'var(--ink)'
+            : 'color-mix(in srgb, var(--ink) 70%, transparent)',
+          color: showing
+            ? 'var(--ink)'
+            : 'color-mix(in srgb, var(--ink) 70%, transparent)',
+        }}
       >
         <InfoIcon size={size - 4} />
       </button>

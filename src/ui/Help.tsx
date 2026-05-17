@@ -15,10 +15,12 @@ export function HelpButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 font-serif text-[12px] text-ink-faint transition hover:text-ink"
+        className="inline-flex items-center gap-1.5 rounded-sm p-1 font-serif text-[14px] text-ink-faint transition hover:bg-ink/5 hover:text-ink lg:text-[16px]"
         title="Правила"
+        aria-label="Правила"
       >
-        <ScrollIcon size={14} /> Правила
+        <ScrollIcon size={18} />
+        <span className="hidden lg:inline">Правила</span>
       </button>
       <AnimatePresence>{open && <HelpModal onClose={() => setOpen(false)} />}</AnimatePresence>
     </>

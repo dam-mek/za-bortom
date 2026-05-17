@@ -82,27 +82,27 @@ function Menu({ onPick }: { onPick: (m: Mode) => void }) {
         кто-то доплывёт. кто-то нет.
       </div>
 
-      <div className="mx-auto mt-10 grid max-w-2xl gap-4 md:grid-cols-3">
+      <div className="mx-auto mt-10 flex w-full max-w-md flex-col gap-3">
         <StampButton
-          icon={<WheelIcon size={36} />}
-          title="Hot-seat"
-          subtitle="за одним экраном"
-          onClick={() => onPick('local')}
-          accent="enemy"
-        />
-        <StampButton
-          icon={<AnchorIcon size={36} />}
-          title="Создать комнату"
+          icon={<AnchorIcon size={28} />}
+          title="Создать шлюпку"
           subtitle="P2P · вы капитан"
           onClick={() => onPick('host')}
           accent="friend"
         />
         <StampButton
-          icon={<ScrollIcon size={36} />}
-          title="Подключиться"
-          subtitle="по коду"
+          icon={<ScrollIcon size={28} />}
+          title="Оказаться на борту"
+          subtitle="по коду от капитана"
           onClick={() => onPick('client')}
           accent="nav"
+        />
+        <StampButton
+          icon={<WheelIcon size={28} />}
+          title="Игра с ботами"
+          subtitle="за одним экраном"
+          onClick={() => onPick('local')}
+          accent="enemy"
         />
       </div>
 
@@ -135,21 +135,24 @@ function StampButton({
     <motion.button
       type="button"
       onClick={onClick}
-      whileHover={{ y: -3, rotate: -0.5 }}
-      whileTap={{ scale: 0.97 }}
-      className={`relative flex flex-col items-center gap-2 rounded-sm border-2 bg-paper/80 px-4 py-6 text-ink shadow-emboss transition ${accentClass[accent]}`}
+      whileHover={{ x: 4 }}
+      whileTap={{ scale: 0.98 }}
+      className={`relative flex w-full items-center gap-4 rounded-sm border-2 bg-paper/80 px-5 py-4 text-left text-ink shadow-emboss transition ${accentClass[accent]}`}
       style={{
         boxShadow:
           'inset 0 0 0 1px rgba(255,255,255,0.4), 0 4px 12px rgba(0,0,0,0.18)',
       }}
     >
-      <div className={`text-current`}>{icon}</div>
-      <div className="font-stamp text-[15px] tracking-stamp">
-        {title.toUpperCase()}
+      <div className="shrink-0 text-current">{icon}</div>
+      <div className="flex-1">
+        <div className="font-stamp text-[15px] tracking-stamp">
+          {title.toUpperCase()}
+        </div>
+        <div className="font-serif text-[11px] italic text-ink-faint">
+          {subtitle}
+        </div>
       </div>
-      <div className="font-serif text-[11px] italic text-ink-faint">
-        {subtitle}
-      </div>
+      <div className="shrink-0 text-current opacity-40 font-serif text-[18px]">→</div>
     </motion.button>
   )
 }

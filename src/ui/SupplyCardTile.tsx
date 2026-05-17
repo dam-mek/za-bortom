@@ -93,20 +93,20 @@ export function SupplyCardTile({
           isClosed && 'opacity-90',
         )}
       >
-        <div className="text-ink">
+        <div className="text-paper">
           <Icon size={compact ? 24 : 30} />
         </div>
-        <div className="px-1 text-center font-stamp text-[12px] leading-tight tracking-stamp text-ink">
+        <div className="px-1 text-center font-stamp text-[12px] leading-tight tracking-stamp text-paper">
           {name.toUpperCase()}
         </div>
         <div className="flex items-center gap-2">
           {(card.weaponStrength ?? 0) > 0 && (
-            <div className="font-mono text-[11px] font-bold text-card-enemy">
-              +{card.weaponStrength}
+            <div className="font-mono text-[11px] font-bold text-paper/90">
+              ⚔ {card.weaponStrength}
             </div>
           )}
           {(card.valuePoints ?? 0) > 0 && (
-            <div className="font-mono text-[11px] font-bold text-card-friend-deep">
+            <div className="font-mono text-[11px] font-bold text-accent">
               ◆ {card.valuePoints}
             </div>
           )}
@@ -114,6 +114,8 @@ export function SupplyCardTile({
       </div>
     </>
   )
+
+  const supplyBg = 'linear-gradient(180deg, #8aa9c2 0%, #6B8EA8 60%, #3F5366 100%)'
 
   if (interactive) {
     return (
@@ -123,15 +125,14 @@ export function SupplyCardTile({
         whileTap={{ scale: 0.97 }}
         onClick={onClick}
         className={clsx(
-          'relative overflow-hidden rounded-sm text-ink transition',
+          'relative overflow-hidden rounded-sm text-paper transition',
           compact ? 'h-[78px] w-[96px]' : 'h-[96px] w-full',
-          selected
-            ? 'bg-accent/40 ring-2 ring-accent'
-            : 'bg-paper hover:bg-paper/90',
         )}
         style={{
-          boxShadow:
-            'inset 0 0 0 1px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 4px rgba(0,0,0,0.18)',
+          background: supplyBg,
+          boxShadow: selected
+            ? 'inset 0 0 0 2px rgba(242,197,0,0.9), 0 4px 14px rgba(107,142,168,0.45)'
+            : 'inset 0 0 0 1px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 4px rgba(0,0,0,0.18)',
         }}
       >
         {content}
@@ -140,7 +141,7 @@ export function SupplyCardTile({
   }
 
   return (
-    <TileShell compact={compact} bgClass="bg-paper">
+    <TileShell compact={compact} bgStyle={{ background: supplyBg }}>
       {content}
     </TileShell>
   )
@@ -149,10 +150,12 @@ export function SupplyCardTile({
 function TileShell({
   children,
   bgClass,
+  bgStyle,
   compact,
 }: {
   children: React.ReactNode
-  bgClass: string
+  bgClass?: string
+  bgStyle?: React.CSSProperties
   compact: boolean
 }) {
   return (
@@ -161,13 +164,14 @@ function TileShell({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
       className={clsx(
-        'relative overflow-hidden rounded-sm p-2 text-ink',
+        'relative overflow-hidden rounded-sm p-2',
         compact ? 'h-[78px] w-[96px]' : 'h-[96px] w-full',
         bgClass,
       )}
       style={{
         boxShadow:
           'inset 0 0 0 1px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.22)',
+        ...bgStyle,
       }}
     >
       {children}

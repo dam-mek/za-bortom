@@ -362,6 +362,22 @@ export function PlusIcon(p: IconProps) {
   )
 }
 
+export function FistIcon(p: IconProps) {
+  // Сжатый кулак — маркер «жажду получают бойцы» на картах навигации.
+  return (
+    <svg {...base(p)}>
+      {/* Четыре пальца */}
+      <rect x="6" y="5" width="2.8" height="6" rx="1.4" fill="currentColor" stroke="none" />
+      <rect x="9.6" y="4" width="2.8" height="7" rx="1.4" fill="currentColor" stroke="none" />
+      <rect x="13.2" y="5" width="2.8" height="6" rx="1.4" fill="currentColor" stroke="none" />
+      {/* Ладонь */}
+      <rect x="5" y="10" width="14" height="7" rx="2" fill="currentColor" stroke="none" />
+      {/* Большой палец */}
+      <path d="M5 13 Q3 13 3 15 Q3 17 5 17" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 // === Каталог: supplyType → иконка ===
 
 import type { SupplyType } from '@/game/constants'

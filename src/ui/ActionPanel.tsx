@@ -20,6 +20,7 @@ import {
   LifeRingIcon,
   SharkBaitIcon,
   CompassIcon,
+  FistIcon,
 } from '@/ui/icons'
 import type { CharacterId, SupplyType } from '@/game/constants'
 import type {
@@ -175,63 +176,6 @@ function CardChip({
       selected={selected}
       compact
     />
-  )
-}
-
-function NavCardChip({ card }: { card: NavigationCard | undefined }) {
-  if (!card) {
-    return <span className="font-mono text-[10px] text-ink-faint">?</span>
-  }
-  const tags: { icon: React.ReactNode; label: string; color: string }[] = []
-  if (card.seagull === 'normal') {
-    tags.push({
-      icon: <SeagullIcon size={11} />,
-      label: '+1',
-      color: 'text-card-enemy',
-    })
-  }
-  if (card.seagull === 'crossed') {
-    tags.push({
-      icon: <SeagullIcon size={11} />,
-      label: 'крест',
-      color: 'text-ink-faint',
-    })
-  }
-  if (card.overboard.length) {
-    tags.push({
-      icon: <LifeRingIcon size={11} />,
-      label: card.overboard.map((c) => characterMeta(c).name).join(', '),
-      color: 'text-horizon-indigo',
-    })
-  }
-  const thirstParts: string[] = []
-  if (card.thirst.rowers) thirstParts.push('гребцы')
-  if (card.thirst.fighters) thirstParts.push('бойцы')
-  if (card.thirst.named.length)
-    thirstParts.push(card.thirst.named.map((c) => characterMeta(c).name).join(', '))
-  if (thirstParts.length) {
-    tags.push({
-      icon: <WaterDropIcon size={11} />,
-      label: thirstParts.join('+'),
-      color: 'text-card-supply-shadow',
-    })
-  }
-
-  return (
-    <span className="inline-flex items-center gap-2 rounded-sm border border-ink/25 bg-paper/70 px-2 py-0.5">
-      {tags.length === 0 ? (
-        <span className="font-serif text-[11px] italic text-ink-faint">
-          нейтральная
-        </span>
-      ) : (
-        tags.map((t, i) => (
-          <span key={i} className={`inline-flex items-center gap-1 ${t.color}`}>
-            {t.icon}
-            <span className="font-mono text-[10px]">{t.label}</span>
-          </span>
-        ))
-      )}
-    </span>
   )
 }
 
@@ -477,6 +421,111 @@ function DayActionsPanel({ state }: { state: GameState }) {
   )
 }
 
+// Полноценная карта навигации для выбора при гребле.
+// Клик поднимает карту (y: -10) и добавляет золотое обрамление.
+function NavCardFull({
+  card,
+  selected,
+  onToggle,
+}: {
+  card: NavigationCard | undefined
+  selected: boolean
+  onToggle: () => void
+}) {
+  if (!card) return null
+
+  const hasSeagull = card.seagull === 'normal'
+  const crossedSeagull = card.seagull === 'crossed'
+  const rowersThirst = card.thirst.rowers
+  const fightersThirst = card.thirst.fighters
+  const namedThirst = card.thirst.named
+  const overboard = card.overboard
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onToggle}
+      animate={{ y: selected ? -10 : 0 }}
+      whileHover={{ y: selected ? -12 : -4 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 24 }}
+      className="relative flex w-[108px] shrink-0 flex-col overflow-hidden rounded-sm text-paper"
+      style={{
+        minHeight: 164,
+        background: 'linear-gradient(180deg, #7ec9bf 0%, #5BB5A8 55%, #2f6e64 100%)',
+        boxShadow: selected
+          ? 'inset 0 0 0 2px rgba(242,197,0,0.95), 0 10px 28px rgba(91,181,168,0.55)'
+          : 'inset 0 0 0 1px rgba(255,255,255,0.18), 0 4px 14px rgba(0,0,0,0.32)',
+      }}
+    >
+      {/* Верх: за борт */}
+      <div className="min-h-[44px] border-b border-paper/15 px-2 py-1.5">
+        {overboard.length > 0 ? (
+          <div>
+            <div className="flex items-center gap-1">
+              <LifeRingIcon size={9} />
+              <span className="font-stamp text-[7px] tracking-stamp text-paper/70">ЗА БОРТ</span>
+            </div>
+            <div className="mt-0.5 font-hand text-[12px] leading-tight text-paper">
+              {overboard.map((c) => characterMeta(c).name).join(', ')}
+            </div>
+          </div>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <span className="font-serif text-[10px] italic text-paper/35">—</span>
+          </div>
+        )}
+      </div>
+
+      {/* Центр: чайка */}
+      <div className="flex flex-1 items-center justify-center py-3">
+        {hasSeagull && (
+          <div className="text-paper drop-shadow-sm">
+            <SeagullIcon size={38} />
+          </div>
+        )}
+        {crossedSeagull && (
+          <div className="relative text-paper/70">
+            <SeagullIcon size={38} />
+            <svg
+              className="absolute inset-0"
+              viewBox="0 0 38 38"
+              width={38}
+              height={38}
+            >
+              <line x1="4" y1="4" x2="34" y2="34" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="34" y1="4" x2="4" y2="34" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
+        {!hasSeagull && !crossedSeagull && (
+          <span className="font-serif text-[11px] italic text-paper/40">нейтр.</span>
+        )}
+      </div>
+
+      {/* Низ: конкретные персонажи с жаждой + иконки */}
+      <div className="border-t border-paper/15 px-2 pb-2 pt-1.5">
+        {namedThirst.length > 0 && (
+          <div className="mb-1.5 flex items-center justify-center gap-1">
+            <WaterDropIcon size={9} className="shrink-0 text-paper/60" />
+            <span className="font-hand text-[11px] leading-tight text-paper/90">
+              {namedThirst.map((c) => characterMeta(c).name).join(', ')}
+            </span>
+          </div>
+        )}
+        {/* Кулак (бойцы) слева, вёсла (гребцы) справа */}
+        <div className="flex items-center justify-between">
+          <div className="flex h-5 w-5 items-center justify-center">
+            {fightersThirst && <FistIcon size={16} />}
+          </div>
+          <div className="flex h-5 w-5 items-center justify-center">
+            {rowersThirst && <OarIcon size={16} />}
+          </div>
+        </div>
+      </div>
+    </motion.button>
+  )
+}
+
 function RowingPanel({ state }: { state: GameState }) {
   const dispatch = useGameStore((s) => s.dispatch)
   const [selected, setSelected] = useState<string[]>([])
@@ -484,43 +533,35 @@ function RowingPanel({ state }: { state: GameState }) {
   if (state.phase.kind !== 'day' || state.phase.subPhase.kind !== 'rowing')
     return null
   const sub = state.phase.subPhase
+
   function toggle(id: string) {
     setSelected((cur) =>
       cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
     )
   }
+
   return (
     <PanelCard title="Гребля — выбор карт навигации" accent="nav">
-      <div className="mb-2 font-serif text-[12px] text-ink">
-        {state.players[sub.playerId]?.displayName} тянет{' '}
-        <span className="font-mono font-bold">{sub.drawn.length}</span> карт.
-        Отметьте те, которые хотите оставить вечером (остальные пойдут в сброс).
+      <div className="mb-3 font-serif text-[12px] text-ink">
+        <span className="font-hand text-[16px]">{state.players[sub.playerId]?.displayName}</span>
+        {' '}тянет{' '}
+        <span className="font-mono font-bold">{sub.drawn.length}</span>{' '}
+        {sub.drawn.length === 1 ? 'карту' : sub.drawn.length < 5 ? 'карты' : 'карт'}.
+        Выберите те, что оставить на вечер — остальные уйдут в сброс.
       </div>
-      <div className="space-y-1">
-        {sub.drawn.map((id) => {
-          const checked = selected.includes(id)
-          return (
-            <label
-              key={id}
-              className={clsx(
-                'flex cursor-pointer items-center gap-2 rounded-sm border px-2 py-1 transition',
-                checked
-                  ? 'border-accent bg-accent/15'
-                  : 'border-ink/20 bg-paper/40 hover:bg-paper/70',
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => toggle(id)}
-                className="accent-card-enemy"
-              />
-              <NavCardChip card={state.navById[id]} />
-            </label>
-          )
-        })}
+
+      <div className="flex flex-wrap gap-3">
+        {sub.drawn.map((id) => (
+          <NavCardFull
+            key={id}
+            card={state.navById[id]}
+            selected={selected.includes(id)}
+            onToggle={() => toggle(id)}
+          />
+        ))}
       </div>
-      <div className="mt-3">
+
+      <div className="mt-4">
         <Button
           variant="accent"
           onClick={() => {
@@ -828,22 +869,20 @@ function EveningPanel({ state }: { state: GameState }) {
             Пул пуст — верх колоды
           </Button>
         ) : (
-          <div className="space-y-1">
+          <div className="flex flex-wrap gap-3">
             {sub.pool.map((id) => (
-              <button
+              <NavCardFull
                 key={id}
-                type="button"
-                onClick={() =>
+                card={state.navById[id]}
+                selected={false}
+                onToggle={() =>
                   dispatch({
                     kind: 'EVENING_SELECT_NAV_CARD',
                     playerId: sub.pickerId,
                     navCardId: id,
                   })
                 }
-                className="block w-full rounded-sm border border-ink/20 bg-paper/60 px-2 py-1 text-left hover:bg-paper"
-              >
-                <NavCardChip card={state.navById[id]} />
-              </button>
+              />
             ))}
           </div>
         )}

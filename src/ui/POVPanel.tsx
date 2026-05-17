@@ -69,7 +69,7 @@ export function POVPanel({
             'linear-gradient(180deg, #835592 0%, #6E4878 60%, #42284c 100%)',
         }}
       >
-        <div className="absolute right-2 top-2 ring-2 ring-paper/30 rounded-full">
+        <div className="absolute right-2 top-2">
           <InfoBadge
             content={{
               title: 'Лучший друг',
@@ -99,7 +99,7 @@ export function POVPanel({
             'linear-gradient(180deg, #a93b50 0%, #8C2C3D 60%, #5a1925 100%)',
         }}
       >
-        <div className="absolute right-2 top-2 ring-2 ring-paper/30 rounded-full">
+        <div className="absolute right-2 top-2">
           <InfoBadge
             content={{
               title: 'Заклятый враг',

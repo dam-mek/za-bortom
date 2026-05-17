@@ -91,7 +91,7 @@ function DeckCardShell({
               "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.25 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
           }}
         />
-        <div className="absolute right-2 top-2 ring-2 ring-paper/30 rounded-full">
+        <div className="absolute right-2 top-2 z-20">
           <InfoBadge content={tooltip} size={20} />
         </div>
 

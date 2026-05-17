@@ -22,8 +22,6 @@ export function InventoryRail({
   const meta = actor ? characterMeta(actor.character) : null
   const open = actor ? actor.openSupplies : []
   const closed = actor ? actor.closedSupplies : []
-  const totalSlots = Math.max(4, open.length + closed.length)
-  const emptyCount = Math.max(0, totalSlots - open.length - closed.length)
 
   return (
     <section
@@ -44,18 +42,18 @@ export function InventoryRail({
         }}
       />
 
-      <div className="relative flex items-start gap-5">
-        {/* Заголовок-меточка слева. */}
-        <div className="shrink-0 pt-1">
-          <div className="font-stamp text-[12px] tracking-stamp text-paper/80">
+      <div className="relative flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-5">
+        {/* Заголовок-меточка: на мобайле сверху горизонтально, на десктопе — слева вертикально. */}
+        <div className="flex shrink-0 items-baseline gap-2 lg:block lg:pt-1">
+          <div className="font-stamp text-[11px] tracking-stamp text-paper/80 lg:text-[12px]">
             {title}
           </div>
           {meta && actor && (
-            <div className="mt-1">
-              <div className="font-hand text-[28px] leading-none text-accent">
+            <div className="flex items-baseline gap-2 lg:mt-1 lg:flex-col lg:items-stretch lg:gap-0">
+              <div className="font-hand text-[22px] leading-none text-accent lg:text-[28px]">
                 {meta.name}
               </div>
-              <div className="font-mono text-[11px] uppercase tracking-wider text-paper/70">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-paper/70 lg:text-[11px]">
                 {actor.displayName}
               </div>
             </div>
@@ -66,14 +64,11 @@ export function InventoryRail({
         </div>
 
         {/* Слоты с картами. */}
-        <div className="grid flex-1 grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
-          {/* Открытые. */}
+        <div className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(120px,180px))] gap-2.5">
           {open.map((id) => {
             const card = state.supplyById[id]
             return <SupplyCardTile key={id} card={card} mode="open" />
           })}
-          {/* Закрытые: показываем иконку, если содержимое известно
-              (hot-seat / свой инвентарь). Иначе wooden back без «?». */}
           {closed.map((id, i) => {
             const card = state.supplyById[id]
             return (
@@ -84,10 +79,6 @@ export function InventoryRail({
               />
             )
           })}
-          {/* Пустые слоты до минимума. */}
-          {Array.from({ length: emptyCount }).map((_, i) => (
-            <SupplyCardTile key={`empty-${i}`} mode="empty" />
-          ))}
         </div>
       </div>
     </section>

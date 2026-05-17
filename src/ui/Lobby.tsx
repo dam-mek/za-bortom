@@ -137,6 +137,7 @@ function StampButton({
       onClick={onClick}
       whileHover={{ x: 4 }}
       whileTap={{ scale: 0.98 }}
+      transition={{ type: 'tween', duration: 0.1 }}
       className={`relative flex w-full items-center gap-4 rounded-sm border-2 bg-paper/80 px-5 py-4 text-left text-ink shadow-emboss transition ${accentClass[accent]}`}
       style={{
         boxShadow:

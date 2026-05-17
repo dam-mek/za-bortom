@@ -135,10 +135,10 @@ export function PlayerCard({
             )}
           </div>
 
-          {/* Метка номера банки в углу. */}
+          {/* Метка номера банки в углу. 
           <div className="absolute left-1.5 bottom-1.5 z-10 rounded-sm bg-paper/70 px-1.5 py-0.5 font-mono text-[11px] font-bold text-ink">
             #{seatIndex + 1}
-          </div>
+          </div>*/}
 
           {/* Портрет (или fallback). */}
           <div className="relative h-[120px] w-full overflow-hidden bg-card-character-deep">

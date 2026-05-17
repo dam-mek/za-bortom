@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { motion } from 'motion/react'
 import { BoatSilhouette } from './BoatSilhouette'
 import { PlayerCard } from './PlayerCard'
@@ -10,14 +11,30 @@ import type { FightState, GameState, PlayerId } from '@/game/types'
  * Линейный ряд банок «нос → корма» (слева → справа). См. docs/design-roadmap.md §4, §6, §9.
  * Внешняя рама — кирпично-красная #7C2424 как в макете.
  *
- * АДАПТИВНОСТЬ: N игроков = N мест. Removed-банки НЕ отображаются вообще.
- * Видны только живые места (включая опустевшие — там был игрок, но труп унесло).
+ * Адаптив: N игроков = N мест; removed-банки скрыты.
+ *  - Desktop (lg:): центрированный ряд, видны маркеры НОС/КОРМА по краям.
+ *  - Mobile: горизонтальный скролл со snap-точками; маркеры скрыты;
+ *    при смене хода авто-скролл к текущему игроку (scrollIntoView).
  */
 export function BoatView({ state }: { state: GameState }) {
   const myPlayerId = useGameStore((s) => s.myPlayerId)
   const currentPlayerId = findCurrentPlayer(state)
   const fight = extractFight(state)
   const liveSeats = state.seats.filter((s) => !s.removed)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const currentRef = useRef<HTMLDivElement>(null)
+
+  // Авто-скролл к текущему игроку (актуально на мобайле где есть overflow).
+  useEffect(() => {
+    if (!currentRef.current || !scrollRef.current) return
+    // Делаем безопасный inline-center без вертикального jump (block: 'nearest').
+    currentRef.current.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    })
+  }, [currentPlayerId])
 
   return (
     <section className="relative">
@@ -31,35 +48,29 @@ export function BoatView({ state }: { state: GameState }) {
       >
         {/* Внутренняя «доска» — пергаментная подложка под ряд банок. */}
         <div
-          className="relative rounded-sm px-12 py-4"
+          className="relative rounded-sm px-3 py-3 lg:px-12 lg:py-4"
           style={{
             background:
               'linear-gradient(180deg, var(--bg-paper, #f1e6cf) 0%, var(--bg-paper-deep, #d9c8a0) 100%)',
           }}
         >
-          {/* Маркеры носа и кормы — внутри рамы, в зарезервированных колонках. */}
-          <div className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 flex flex-col items-center text-ink-faint">
+          {/* Маркеры носа и кормы — только desktop (на мобайле скрыты, чтобы не мешали скроллу). */}
+          <div className="pointer-events-none absolute left-2 top-1/2 hidden -translate-y-1/2 flex-col items-center text-ink-faint lg:flex">
             <ProwIcon size={32} />
             <span className="mt-1 font-stamp text-[11px] tracking-stamp text-ink">НОС</span>
           </div>
-          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center text-ink-faint">
+          <div className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 flex-col items-center text-ink-faint lg:flex">
             <AnchorIcon size={30} />
             <span className="mt-1 font-stamp text-[11px] tracking-stamp text-ink">КОРМА</span>
           </div>
 
-          {/* Стрелка направления гребли (пунктирная). */}
-          {/* 
-          <div className="pointer-events-none absolute inset-x-12 top-1.5 flex items-center justify-center text-ink-faint/40">
-            <div className="flex-1 border-t border-dashed border-ink-faint/40" />
-            <span className="mx-2 font-mono text-[9px] uppercase tracking-wider">
-              направление хода
-            </span>
-            <div className="flex-1 border-t border-dashed border-ink-faint/40" />
-            <span className="ml-1 text-ink-faint/60">▶</span>
-          </div>*/}
-
-          {/* Ряд банок — только не-removed места. */}
-          <div className="flex justify-center gap-3 pt-4">
+          {/* Ряд банок.
+              Mobile: overflow-x-auto со snap; на десктопе центрируется. */}
+          <div
+            ref={scrollRef}
+            className="flex gap-3 overflow-x-auto pt-4 snap-x snap-mandatory scroll-px-3 lg:justify-center lg:overflow-visible lg:snap-none"
+            style={{ scrollbarWidth: 'thin' }}
+          >
             {liveSeats.map((seat, idx) => {
               const tilt =
                 idx === 0
@@ -81,10 +92,12 @@ export function BoatView({ state }: { state: GameState }) {
               return (
                 <motion.div
                   key={seat.index}
+                  ref={isCurrent ? currentRef : undefined}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.06, duration: 0.35 }}
                   style={{ transform: `translateY(${tilt}px)` }}
+                  className="snap-center"
                 >
                   <PlayerCard
                     state={state}
@@ -99,8 +112,8 @@ export function BoatView({ state }: { state: GameState }) {
             })}
           </div>
 
-          {/* Силуэт лодки под рядом. */}
-          <div className="mt-1 px-6">
+          {/* Силуэт лодки под рядом — на мобайле скрыт (его всё равно перекроет скролл). */}
+          <div className="mt-1 hidden px-6 lg:block">
             <BoatSilhouette height={56} />
           </div>
         </div>

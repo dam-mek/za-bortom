@@ -6,11 +6,18 @@ import { GameHeader } from './GameHeader'
 import { InventoryRail, findActorPlayerId, getActor } from './InventoryRail'
 import { LogPane } from './LogPane'
 import { POVPanel } from './POVPanel'
+import { POVDrawer } from './POVDrawer'
 import { ScoringScreen } from './ScoringScreen'
 import { SupplyDeckCard, NavDeckCard } from './DeckCards'
 
 /**
  * Главный игровой экран. Layout см. docs/design-roadmap.md §4.
+ *
+ * Адаптив: mobile-first.
+ *  - На мобильном (< 1024px): вертикальный стек. POV — шторкой снизу (POVDrawer).
+ *    Колоды — горизонтальная пара под лодкой.
+ *  - На десктопе (lg:): 3-колоночный layout — POV слева, лодка по центру,
+ *    колоды справа.
  */
 export function Game() {
   const rawState = useGameStore((s) => s.state)
@@ -26,8 +33,7 @@ export function Game() {
     return <ScoringScreen state={state} />
   }
 
-  // POV-панель: в multiplayer — свой POV, в hot-seat — POV текущего ходящего.
-  // (Всегда видна, чтобы игроки помнили за кого играют и кто их друг/враг.)
+  // POV: в multiplayer — свой POV, в hot-seat — POV текущего ходящего.
   const povPlayerId: string | null =
     mode === 'local' ? findActorPlayerId(state) : (myPlayerId ?? null)
   const actor = getActor(state, myPlayerId ?? null)
@@ -35,24 +41,29 @@ export function Game() {
     mode === 'local' ? 'Инвентарь хода' : 'Ваш инвентарь'
 
   return (
-    <main className="relative min-h-screen p-4 pb-32 text-ink">
-      <div className="mx-auto flex max-w-[1480px] flex-col gap-4">
+    <main className="relative min-h-screen p-2 pb-32 text-ink lg:p-4">
+      <div className="mx-auto flex max-w-[1480px] flex-col gap-3 lg:gap-4">
         <GameHeader state={state} />
 
-        <div className="flex gap-4">
+        {/* Главный ряд: десктоп — 3 колонки, мобайл — стек. */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:gap-4">
+          {/* POV слева — только десктоп. На мобайле — POVDrawer внизу. */}
           {povPlayerId && (
-            <POVPanel
-              state={state}
-              myPlayerId={povPlayerId}
-              hotSeat={mode === 'local'}
-            />
+            <div className="hidden lg:block">
+              <POVPanel
+                state={state}
+                myPlayerId={povPlayerId}
+                hotSeat={mode === 'local'}
+              />
+            </div>
           )}
 
           <div className="flex-1 min-w-0">
             <BoatView state={state} />
           </div>
 
-          <aside className="flex w-[160px] shrink-0 flex-col gap-3">
+          {/* Колоды: десктоп — aside справа, мобайл — горизонтальная пара. */}
+          <aside className="flex shrink-0 flex-row justify-center gap-3 lg:w-[160px] lg:flex-col">
             <SupplyDeckCard
               remaining={state.supplyDeck.length}
               discard={state.supplyDiscard.length}
@@ -87,6 +98,15 @@ export function Game() {
 
         <LogPane />
       </div>
+
+      {/* Шторка POV — только мобайл. Фиксированно прижата к низу. */}
+      {povPlayerId && (
+        <POVDrawer
+          state={state}
+          myPlayerId={povPlayerId}
+          hotSeat={mode === 'local'}
+        />
+      )}
     </main>
   )
 }

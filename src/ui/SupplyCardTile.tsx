@@ -123,6 +123,7 @@ export function SupplyCardTile({
         type="button"
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.97 }}
+        transition={{ type: 'tween', duration: 0.1 }}
         onClick={onClick}
         className={clsx(
           'relative overflow-hidden rounded-sm text-paper transition',
@@ -165,7 +166,7 @@ function TileShell({
       transition={{ duration: 0.25 }}
       className={clsx(
         'relative overflow-hidden rounded-sm p-2',
-        compact ? 'h-[78px] w-[96px]' : 'h-[96px] w-full',
+        compact ? 'h-[78px] w-[96px]' : 'h-[152px] w-full',
         bgClass,
       )}
       style={{

@@ -38,7 +38,7 @@ interface PlayerCardProps {
 export function PlayerCard({
   state,
   player,
-  seatIndex,
+  // seatIndex,
   isCurrent,
   isYou,
   fightRole,
